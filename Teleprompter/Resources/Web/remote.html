@@ -213,14 +213,16 @@
     if (label) label.textContent = on ? "On" : "Off";
   }
 
-  /* The words around the reading line, with the current phrase picked out. */
+  /* The words around the reading line, with the current phrase picked out
+     (timed mode marks nothing, as on the prompter itself). */
   function renderNow() {
     const now = $("now");
     const tokens = script.tokens;
     if (!tokens.length) { now.textContent = ""; return; }
     const n = tokens.length / 2;
     const at = Math.min(Math.max(Math.round(state.position || 0), 0), n - 1);
-    const cur = state.current || [at, at + 1];
+    const timed = state.mode === "timed";
+    const cur = timed ? [at, at] : state.current || [at, at + 1];
     const from = Math.max(0, Math.min(cur[0], at) - 4);
     const to = Math.min(n, Math.max(cur[1], at + 1) + 14);
     const loc = (i) => tokens[i * 2];
@@ -228,6 +230,10 @@
     const esc = Prompter.escapeHTML;
     const t = script.text;
     const a = loc(from), b = end(to - 1);
+    if (timed) {
+      now.innerHTML = (from > 0 ? "… " : "") + esc(t.slice(a, b)).replace(/\n+/g, " ") + (to < n ? " …" : "");
+      return;
+    }
     const ca = loc(Math.max(cur[0], from)), cb = end(Math.min(cur[1], to) - 1);
     now.innerHTML = (from > 0 ? "… " : "") + esc(t.slice(a, ca)).replace(/\n+/g, " ") +
       "<mark>" + esc(t.slice(ca, cb)).replace(/\n+/g, " ") + "</mark>" +

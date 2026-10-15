@@ -114,7 +114,13 @@
     keepAwake();
   });
 
-  events.addEventListener("style", (e) => stage.setStyle(JSON.parse(e.data)));
+  events.addEventListener("style", (e) => {
+    const style = JSON.parse(e.data);
+    stage.setStyle(style);
+    // The countdown reads through the same glass as the script: mirror and flip it too.
+    const d = style.display || {};
+    countdown.style.transform = `scale(${d.mirror ? -1 : 1}, ${d.flip ? -1 : 1})`;
+  });
 
   events.addEventListener("state", (e) => {
     const st = JSON.parse(e.data);
