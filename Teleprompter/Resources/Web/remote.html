@@ -28,11 +28,12 @@
   .transport .side:last-child { justify-content: flex-end; }
   #play { --h: 64px; min-width: 150px; font-size: 14px; }
   #play .icon { width: 22px; height: 22px; }
+  /* A small copy of the prompter, scrolling as the prompter does (never mirrored). */
   .now {
-    margin-top: var(--s3); padding: var(--s3); border-radius: var(--r-md); background: var(--surface-sunken);
-    font-size: 17px; line-height: 1.45; min-height: 4.5em; color: var(--ink-muted);
+    position: relative; margin-top: var(--s3); height: 200px; overflow: hidden;
+    border-radius: var(--r-md); border: 1px solid var(--line);
   }
-  .now mark { background: none; color: var(--ink); font-weight: 600; }
+  .now .stage { position: absolute; }
   .readouts { display: flex; justify-content: space-between; margin-top: var(--s2); }
   .stepper { display: inline-flex; align-items: center; gap: var(--s2); }
   .stepper output { min-width: 5.5em; text-align: center; }
@@ -66,7 +67,7 @@
     <span id="state-chip" class="status idle"></span>
   </div>
 
-  <div class="now" id="now" aria-live="off"></div>
+  <div class="now" aria-hidden="true"><div id="preview"></div></div>
 
   <div class="transport">
     <div class="side">
@@ -213,31 +214,17 @@
     if (label) label.textContent = on ? "On" : "Off";
   }
 
-  /* The words around the reading line, with the current phrase picked out
-     (timed mode marks nothing, as on the prompter itself). */
-  function renderNow() {
-    const now = $("now");
-    const tokens = script.tokens;
-    if (!tokens.length) { now.textContent = ""; return; }
-    const n = tokens.length / 2;
-    const at = Math.min(Math.max(Math.round(state.position || 0), 0), n - 1);
-    const timed = state.mode === "timed";
-    const cur = timed ? [at, at] : state.current || [at, at + 1];
-    const from = Math.max(0, Math.min(cur[0], at) - 4);
-    const to = Math.min(n, Math.max(cur[1], at + 1) + 14);
-    const loc = (i) => tokens[i * 2];
-    const end = (i) => tokens[i * 2] + tokens[i * 2 + 1];
-    const esc = Prompter.escapeHTML;
-    const t = script.text;
-    const a = loc(from), b = end(to - 1);
-    if (timed) {
-      now.innerHTML = (from > 0 ? "… " : "") + esc(t.slice(a, b)).replace(/\n+/g, " ") + (to < n ? " …" : "");
-      return;
-    }
-    const ca = loc(Math.max(cur[0], from)), cb = end(Math.min(cur[1], to) - 1);
-    now.innerHTML = (from > 0 ? "… " : "") + esc(t.slice(a, ca)).replace(/\n+/g, " ") +
-      "<mark>" + esc(t.slice(ca, cb)).replace(/\n+/g, " ") + "</mark>" +
-      esc(t.slice(cb, b)).replace(/\n+/g, " ") + (to < n ? " …" : "");
+  /* The preview: the prompter's own stage at phone size, fed the same
+     positions as the iPad display. Timed mode scrolls at one steady speed with
+     nothing marked; Voice Follow shows the app's highlight. */
+  const preview = new Prompter.PrompterStage($("preview"));
+  const follower = new Prompter.Follower(preview);
+  preview.onRelayout = () => follower.resync();
+
+  function renderPreview() {
+    if (!state.session) return;
+    follower.push(state.position, state.state === "playing", state.mode === "timed" ? state.timed : null);
+    preview.setHighlight(state.readUpTo, state.current);
   }
 
   function renderState() {
@@ -268,7 +255,7 @@
     if (!scrubbing) scrub.value = Math.round((state.progress || 0) * 1000);
     $("percent").textContent = Math.round((state.progress || 0) * 100) + "%";
     $("remaining").textContent = fmt(state.remaining || 0) + " left";
-    renderNow();
+    renderPreview();
   }
 
   function markOpen() {
@@ -284,13 +271,18 @@
   events.addEventListener("error", () => setLink("Reconnecting", "warn"));
   events.addEventListener("script", (e) => {
     const s = JSON.parse(e.data);
+    if (s.id !== script.id || s.text !== script.text) preview.setScript(s.text || "", s.tokens || [], s.cues || []);
     script = { id: s.id, text: s.text || "", tokens: s.tokens || [] };
     $("script-title").textContent = s.title || "";
-    renderNow();
   });
   events.addEventListener("state", (e) => { state = JSON.parse(e.data); renderState(); });
   events.addEventListener("style", (e) => {
     const s = JSON.parse(e.data);
+    // Same look as the prompter, sized for the phone and never mirrored or flipped.
+    preview.setStyle(Object.assign({}, s, {
+      fontSize: Math.min(Math.max(s.fontSize * 0.45, 17), 26),
+      display: { mirror: false, flip: false, scale: 1 }
+    }));
     $("size").textContent = Math.round(s.fontSize) + " pt";
     toggle($("display-mirror"), s.display.mirror);
     toggle($("display-flip"), s.display.flip);
