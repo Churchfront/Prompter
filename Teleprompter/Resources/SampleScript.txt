@@ -1,0 +1,17 @@
+Welcome. This is a sample script, so you can try the prompter before you write your own.
+
+Press play and start reading out loud. In Voice Follow mode, the script listens to you and moves at your pace. Read slowly, and it waits for you. Read quickly, and it keeps up. If you stop to take a breath, the text stops with you.
+
+Try skipping ahead to the next sentence. The prompter will find your place. Try repeating a phrase. Your place stays put.
+
+If you lose your spot, keep reading any line you can see, and the script will catch up. You can also drag the text with your finger at any time to move it by hand.
+
+Prefer a steady scroll? Switch to Timed Scroll at the bottom of the screen and set the speed in words per minute. Tap anywhere on the text to pause.
+
+Open settings to change the font, the size, the colors and the line spacing. If you use a beam splitter glass, turn on mirroring so the words read correctly in the reflection.
+
+On Sunday morning, the goal is simple. The person on stage should be looking at the people in the room, not hunting for the next line. Good tools get out of the way so the message comes through clearly.
+
+When you are ready, go back to the library and create your first script. You can paste text from the clipboard or import a plain text file.
+
+Thank you for reading. You are ready to go.
