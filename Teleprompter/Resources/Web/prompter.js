@@ -182,6 +182,12 @@
       this.textEl.querySelectorAll(".cue").forEach((c) => (c.style.fontSize = Math.max(14, s.fontSize * 0.42) * (s.display.scale || 1) + "px"));
 
       const lineHeight = parseFloat(getComputedStyle(this.textEl).lineHeight) || size * 1.2 * s.lineSpacing;
+      // Measure unmirrored and unflipped: client rects include transforms, and a
+      // flipped display would otherwise read the words bottom to top. The
+      // transform does not change layout, so lifting it for the measurement
+      // moves nothing on screen.
+      const flipped = this.flip.style.transform;
+      this.flip.style.transform = "none";
       const base = this.textEl.getBoundingClientRect();
       const top0 = base.top + readingY;
       // Group words into visual lines, then place each word along its line.
@@ -189,6 +195,7 @@
         const r = span.getClientRects()[0] || span.getBoundingClientRect();
         return { top: r.top - top0, bottom: r.bottom - top0, left: r.left, right: r.right };
       });
+      this.flip.style.transform = flipped;
       const ys = new Array(rects.length);
       let i = 0;
       while (i < rects.length) {
@@ -231,6 +238,15 @@
       if (position >= last) return ys[last];
       const i = Math.floor(position), f = position - i;
       return ys[i] + (ys[i + 1] - ys[i]) * f;
+    }
+
+    /* Timed mode: the app's steady scroll distance in average words, mapped with
+       this screen's average height per word, so the display moves at one constant
+       speed and still reaches the end with the app. */
+    offsetForTimed(timed) {
+      const ys = this.readingY;
+      if (!ys.length) return 0;
+      return Math.min(Math.max(ys[0] + timed * this.pointsPerWord, 0), this.maxOffset);
     }
 
     positionFor(offset) {
@@ -311,9 +327,11 @@
       requestAnimationFrame(frame);
     }
 
-    push(position, playing) {
+    /* timed: the app's steady timed-mode distance, when it sends one. */
+    push(position, playing, timed) {
       const now = performance.now();
-      const offset = position <= -1 ? 0 : this.stage.offsetFor(position);
+      this.timed = typeof timed === "number" && isFinite(timed) ? timed : null;
+      const offset = this.goalFor(position);
       if (this.target !== null && this.playing && playing) {
         const dt = (now - this.sampleAt) / 1000;
         if (dt > 0.005 && dt < 0.5) {
@@ -333,9 +351,14 @@
     }
 
     /* After a relayout, the same word position maps to a new offset. */
+    goalFor(position) {
+      if (this.timed !== null && this.timed !== undefined) return this.stage.offsetForTimed(this.timed);
+      return position <= -1 ? 0 : this.stage.offsetFor(position);
+    }
+
     resync() {
       if (this.position === undefined) return;
-      this.target = this.position <= -1 ? 0 : this.stage.offsetFor(this.position);
+      this.target = this.goalFor(this.position);
       this.shown = this.target;
       this.velocity = 0;
       this.stage.setOffset(this.shown);

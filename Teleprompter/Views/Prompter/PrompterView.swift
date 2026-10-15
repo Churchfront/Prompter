@@ -77,6 +77,7 @@ struct PrompterView: View {
 
                 if case .countingDown(let seconds) = controller.state {
                     CountdownOverlay(seconds: seconds, total: settings.countdownSeconds,
+                                     mirror: settings.mirrorHorizontally, flip: settings.flipVertically,
                                      onCancel: controller.pause)
                 }
 
@@ -474,6 +475,9 @@ private struct ModeSwitch: View {
 private struct CountdownOverlay: View {
     let seconds: Int
     let total: Int
+    /// The dial reads through the same glass as the script, so it follows its mirror and flip.
+    let mirror: Bool
+    let flip: Bool
     let onCancel: () -> Void
 
     var body: some View {
@@ -494,6 +498,7 @@ private struct CountdownOverlay: View {
                         .contentTransition(.numericText(countsDown: true))
                 }
                 .frame(width: 180, height: 180)
+                .scaleEffect(x: mirror ? -1 : 1, y: flip ? -1 : 1)
                 Button("Cancel", action: onCancel)
                     .buttonStyle(.signalSecondary)
             }

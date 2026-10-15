@@ -445,6 +445,7 @@ final class RemoteHub {
         case .finished: payload.state = "finished"
         }
         payload.position = (session.readingPosition * 1000).rounded() / 1000
+        payload.timed = session.timedPosition.map { ($0 * 1000).rounded() / 1000 }
         payload.progress = (session.progress * 1000).rounded() / 1000
         payload.remaining = Int(session.remaining)
         payload.tracking = "\(session.tracking)"
@@ -508,6 +509,8 @@ struct StatePayload: Encodable {
     var countdown: Int?
     /// Fractional token at the reading line.
     var position: Double = -1
+    /// Timed mode only: steady scroll distance in average words (see PrompterController.timedPosition).
+    var timed: Double?
     var progress: Double = 0
     var remaining = 0
     var tracking = "off"

@@ -279,18 +279,22 @@ final class Harness {
         check("Rewind moves back by sentences", afterRewind < afterSkip - 3,
               String(format: "word %.1f", afterRewind))
 
-        // Highlight and dimming.
+        // Timed mode: one steady scroll, nothing dimmed or highlighted.
         let token = Int(afterRewind.rounded())
         let storage = surface.textStorage
+        check("Timed mode runs this section", controller.mode == .timed, "\(controller.mode)")
         if token > 2 {
             let readColor = storage.attribute(.foregroundColor, at: controller.tokens.tokens[token - 2].range.location,
                                               effectiveRange: nil) as? UIColor
-            check("Text already read is dimmed", (readColor?.cgColor.alpha ?? 1) < 0.5)
+            check("Timed mode does not dim text already read", (readColor?.cgColor.alpha ?? 1) > 0.9)
         }
         let phrase = controller.tokens.phraseRange(containing: token)
         let currentColor = storage.attribute(.foregroundColor, at: controller.tokens.tokens[phrase.upperBound - 1].range.location,
                                              effectiveRange: nil) as? UIColor
-        check("Current phrase is highlighted", currentColor == settingsStore.settings.highlightColor.uiColor)
+        check("Timed mode does not highlight the current phrase", currentColor != settingsStore.settings.highlightColor.uiColor)
+        check("Timed mode sends no highlight to remote displays",
+              controller.currentHighlight.readUpTo == 0 && controller.currentHighlight.current == nil)
+        check("Timed mode reports a steady position", controller.timedPosition != nil)
 
         // Resume position is saved on pause (further into the script than the first sentences).
         for _ in 0..<4 { controller.skipForward(); await wait(1.2) }
