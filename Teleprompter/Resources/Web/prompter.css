@@ -1,0 +1,186 @@
+/* Churchfront Signal for the Prompter web pages (remote, display, embed).
+   Same tokens as Teleprompter/DesignSystem/Signal.swift. Dark (Midnight) first. */
+
+@font-face {
+  font-family: "Figtree";
+  src: url("figtree.ttf") format("truetype");
+  font-weight: 300 900;
+  font-display: swap;
+}
+
+:root {
+  --bg: #090E14;
+  --surface: #0F161F;
+  --surface-raised: #172230;
+  --surface-sunken: #05080C;
+  --line: #223040;
+  --line-strong: #66778B;
+  --ink: #E6E7E8;
+  --ink-muted: #A7B1BC;
+  --ink-subtle: #8491A0;
+  --accent: #CAE7F9;
+  --accent-soft: #12283B;
+  --action: #CAE7F9;
+  --on-action: #090E14;
+  --focus: #7CC2EE;
+  --success: #4FD8C4;
+  --success-soft: #0A2B28;
+  --warning: #F2B84B;
+  --warning-soft: #2E2208;
+  --danger: #FF6B5E;
+  --danger-soft: #34120F;
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+  --r-xs: 2px; --r-sm: 4px; --r-md: 6px; --r-lg: 10px;
+  --control-md: 36px; --control-lg: 44px;
+
+  --font: "Figtree", -apple-system, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+
+/* The remote follows the phone's light or dark setting. The stage pages stay dark. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #E6E7E8;
+    --surface: #F4F5F6;
+    --surface-raised: #FFFFFF;
+    --surface-sunken: #D9DCDF;
+    --line: #C9CED4;
+    --line-strong: #6F7C8A;
+    --ink: #090E14;
+    --ink-muted: #3A4858;
+    --ink-subtle: #526172;
+    --accent: #155C8F;
+    --accent-soft: #CAE7F9;
+    --action: #090E14;
+    --on-action: #E6E7E8;
+    --focus: #1A73B3;
+    --success: #0B6E68;
+    --success-soft: #D2F5EF;
+    --warning: #7A5000;
+    --warning-soft: #F8E7C2;
+    --danger: #B42318;
+    --danger-soft: #FBDAD6;
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Type */
+.t-title { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; margin: 0; }
+.t-heading { font-size: 20px; font-weight: 700; letter-spacing: -0.005em; margin: 0; }
+.t-subheading { font-size: 16px; font-weight: 600; margin: 0; }
+.t-body-small { font-size: 13px; }
+.t-label { font-size: 12px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
+.t-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.t-readout { font-size: 32px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.t-mono { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-muted); }
+.subtle { color: var(--ink-subtle); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  min-height: var(--control-lg); padding: 0 var(--s4);
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  transition: background 0.12s ease-out, opacity 0.12s ease-out;
+}
+.btn:active { background: var(--surface-raised); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Primary: the Churchfront signature shape, semicircle left and a 12 degree slant right. */
+.btn-primary {
+  --h: 52px;
+  min-height: var(--h);
+  border: 0; border-radius: calc(var(--h) / 2) 0 0 calc(var(--h) / 2);
+  padding: 0 calc(var(--s5) + 0.211 * var(--h)) 0 var(--s5);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.211 * var(--h)) 100%, 0 100%);
+  background: var(--action); color: var(--on-action);
+}
+.btn-primary:active { background: var(--action); opacity: 0.8; }
+
+.btn-quiet {
+  min-width: var(--control-lg); padding: 0 var(--s2);
+  border-color: transparent; text-transform: none; letter-spacing: 0;
+}
+.btn-quiet[aria-pressed="true"] { background: var(--surface-raised); color: var(--accent); }
+
+.icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.icon-lg { width: 24px; height: 24px; }
+
+/* Segmented control */
+.segmented { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r-sm); overflow: hidden; }
+.segmented button {
+  min-height: var(--control-md); padding: 0 var(--s4); border: 0; background: transparent; cursor: pointer;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-muted);
+}
+.segmented button[aria-pressed="true"] { background: var(--surface-raised); color: var(--accent); }
+
+/* Status: color always paired with a word and a dot shape */
+.status { display: inline-flex; align-items: center; gap: var(--s2); font-size: 12px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.status.ok { color: var(--success); }
+.status.warn { color: var(--warning); }
+.status.bad { color: var(--danger); }
+.status.idle { color: var(--ink-subtle); }
+
+input[type="range"] { width: 100%; accent-color: var(--accent); min-height: var(--control-lg); }
+
+/* ---------- Stage (display and embed) ---------- */
+
+.stage {
+  position: fixed; inset: 0; overflow: hidden;
+  background: var(--stage-bg, #090E14);
+  color: var(--stage-text, #E6E7E8);
+}
+.stage-flip { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.stage-scroller { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+.stage-text {
+  white-space: pre-wrap; overflow-wrap: break-word; word-break: normal;
+  font-kerning: normal; font-feature-settings: "kern";
+}
+.stage-text .p { margin: 0; }
+.stage-text .w { transition: color 0.12s linear, opacity 0.12s linear; }
+.stage-text .w.read { opacity: 0.4; }
+.stage-text .w.current { color: var(--stage-highlight, #CAE7F9); }
+.stage-text .cue { color: var(--stage-highlight, #CAE7F9); opacity: 0.55; }
+.stage-marker {
+  position: absolute; left: 6px; width: 14px; height: 24px;
+  background: var(--stage-highlight, #CAE7F9);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  pointer-events: none;
+}
+.stage-progress { position: absolute; left: 0; top: 0; height: 3px; background: var(--stage-highlight, #CAE7F9); width: 0; z-index: 3; }
+.stage-progress-track { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: rgba(255,255,255,0.08); z-index: 2; }
+
+.overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s4); padding: var(--s6); text-align: center; z-index: 5;
+}
+.countdown {
+  font-size: min(40vw, 40vh); font-weight: 700; line-height: 1; color: var(--stage-highlight, #CAE7F9);
+  background: rgba(9, 14, 20, 0.55); inset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-text .w, .btn { transition: none; }
+}

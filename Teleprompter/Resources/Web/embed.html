@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#090E14">
+<title>Prompter</title>
+<meta name="description" content="Churchfront Prompter: a timed-scroll teleprompter that runs in any browser or inside an iframe.">
+<link rel="stylesheet" href="prompter.css">
+<style>
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  [hidden] { display: none !important; }
+  #stage { cursor: pointer; touch-action: none; }
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+    display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; justify-content: center;
+    padding: var(--s3) max(var(--s4), env(safe-area-inset-right)) max(var(--s3), env(safe-area-inset-bottom)) max(var(--s4), env(safe-area-inset-left));
+    background: var(--surface); border-top: 1px solid var(--line);
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+  }
+  .bar.hide { transform: translateY(100%); opacity: 0; pointer-events: none; }
+  .group { display: inline-flex; align-items: center; gap: var(--s1); }
+  .sep { width: 1px; height: 28px; background: var(--line); margin: 0 var(--s1); }
+  #play { --h: 48px; min-width: 120px; }
+  .readout { min-width: 4.8em; text-align: center; color: var(--ink); }
+  #editor {
+    position: fixed; inset: 0; z-index: 8; background: var(--bg);
+    display: flex; flex-direction: column; gap: var(--s3);
+    padding: max(var(--s4), env(safe-area-inset-top)) max(var(--s4), env(safe-area-inset-right)) max(var(--s4), env(safe-area-inset-bottom)) max(var(--s4), env(safe-area-inset-left));
+  }
+  #editor textarea {
+    flex: 1; width: 100%; resize: none; padding: var(--s4);
+    background: var(--surface-sunken); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-md);
+    font: 400 17px/1.5 var(--font);
+  }
+  #editor .row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
+  @media (max-width: 560px) {
+    .bar .sep, .bar .optional { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage" role="document" aria-label="Script. Tap to play or pause."></div>
+<div id="countdown" class="overlay countdown" hidden aria-live="assertive"></div>
+
+<div class="bar" id="bar" role="toolbar" aria-label="Prompter controls">
+  <div class="group">
+    <button class="btn btn-quiet" id="edit" type="button" aria-label="Edit script">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    </button>
+    <button class="btn btn-quiet" id="restart" type="button" aria-label="Restart">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+    </button>
+    <button class="btn btn-quiet" id="back" type="button" aria-label="Back one sentence">
+      <svg class="icon" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/></svg>
+    </button>
+  </div>
+  <button class="btn btn-primary" id="play" type="button">
+    <svg class="icon" id="play-icon" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3" fill="currentColor"/></svg>
+    <span id="play-label">Play</span>
+  </button>
+  <div class="group">
+    <button class="btn btn-quiet" id="ahead" type="button" aria-label="Ahead one sentence">
+      <svg class="icon" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
+    </button>
+  </div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="group">
+    <button class="btn btn-quiet" id="slower" type="button" aria-label="Slower"><svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    <output class="readout t-mono" id="wpm" aria-live="polite">140 WPM</output>
+    <button class="btn btn-quiet" id="faster" type="button" aria-label="Faster"><svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+  </div>
+  <span class="sep" aria-hidden="true"></span>
+  <div class="group optional">
+    <button class="btn btn-quiet" id="smaller" type="button" aria-label="Smaller text"><span style="font-size:13px;font-weight:700">A</span></button>
+    <button class="btn btn-quiet" id="larger" type="button" aria-label="Larger text"><span style="font-size:19px;font-weight:700">A</span></button>
+    <button class="btn btn-quiet" id="mirror" type="button" aria-label="Mirror for beam-splitter glass" aria-pressed="false">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3"/><path d="M12 20v2"/><path d="M12 14v2"/><path d="M12 8v2"/><path d="M12 2v2"/></svg>
+    </button>
+    <button class="btn btn-quiet" id="fullscreen" type="button" aria-label="Full screen">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="editor" hidden>
+  <div class="row">
+    <div>
+      <p class="t-eyebrow subtle" style="margin:0">Prompter</p>
+      <h1 class="t-heading">Script</h1>
+    </div>
+    <button class="btn btn-primary" id="done" type="button" style="--h:44px">Done</button>
+  </div>
+  <label for="script" class="t-body-small muted">Paste or type the script. Text in [square brackets] shows as a quiet stage direction and is skipped when reading.</label>
+  <textarea id="script" spellcheck="true"></textarea>
+</div>
+
+<script src="prompter.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const num = (k, d, lo, hi) => { const v = parseFloat(params.get(k)); return isFinite(v) ? Math.min(Math.max(v, lo), hi) : d; };
+  const flag = (k) => ["1", "true", "yes"].includes((params.get(k) || "").toLowerCase());
+
+  const THEMES = {
+    midnight: { textColor: "#E6E7E8", backgroundColor: "#090E14", highlightColor: "#CAE7F9" },
+    black: { textColor: "#FFFFFF", backgroundColor: "#000000", highlightColor: "#CAE7F9" },
+    grey: { textColor: "#090E14", backgroundColor: "#E6E7E8", highlightColor: "#155C8F" },
+    amber: { textColor: "#F2B84B", backgroundColor: "#000000", highlightColor: "#FFFFFF" }
+  };
+  const SAMPLE = "[WALK TO CENTER]\nWelcome, everyone. We are so glad you are here this morning.\n\nThis is the Churchfront Prompter. Press play, or tap the screen, and the script scrolls at a steady pace. Use the arrow keys to jump by sentence, and left and right to change the speed.\n\n[PAUSE]\nTo use your own words, choose the pencil and paste your script.";
+
+  let style = Object.assign({}, Prompter.DEFAULT_STYLE, THEMES[params.get("theme")] || THEMES.midnight, {
+    fontSize: num("size", 44, 20, 140),
+    lineSpacing: num("spacing", 1.3, 1, 2.2),
+    readingLine: num("line", 0.3, 0.12, 0.6),
+    margin: num("margin", 0.07, 0, 0.3),
+    alignment: { left: "leading", center: "center", right: "trailing" }[params.get("align")] || "leading",
+    highlightMode: "off",
+    marker: params.get("marker") !== "0",
+    display: { mirror: flag("mirror"), flip: flag("flip"), scale: 1 }
+  });
+  let wpm = num("wpm", 140, 40, 320);
+  const countdownSeconds = Math.round(num("countdown", 3, 0, 10));
+  const showControls = params.get("controls") !== "0";
+
+  const stage = new Prompter.PrompterStage($("stage"));
+  let parsed = { tokens: [], cues: [], sentenceStarts: [] };
+  let text = "";
+  let playing = false, counting = false, countdownTimer = null;
+  let offset = 0, last = 0, jump = null;
+
+  function store(key, value) { try { value === undefined ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch (e) {} }
+  function recall(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  function load(newText) {
+    text = (newText || "").replace(/\r\n?/g, "\n");
+    parsed = Prompter.tokenize(text);
+    stage.setScript(text, parsed.tokens, parsed.cues);
+    stage.setStyle(style);
+    offset = 0;
+    stopPlaying();
+    stage.setPosition(-1);
+    post();
+  }
+
+  const position = () => stage.positionFor(offset);
+  const tokenAt = () => Math.min(Math.max(Math.round(position()), 0), Math.max(parsed.tokens.length - 1, 0));
+
+  function setOffset(o, animated) {
+    const clamped = Math.min(Math.max(o, 0), stage.maxOffset);
+    if (animated) { jump = clamped; return; }
+    jump = null;
+    offset = clamped;
+    stage.setOffset(offset);
+  }
+
+  function goToToken(t) {
+    setOffset(t <= 0 ? 0 : stage.offsetFor(t), true);
+  }
+
+  function rewind() {
+    const at = tokenAt(), starts = parsed.sentenceStarts;
+    let s = 0;
+    for (let i = 0; i < starts.length; i++) if (starts[i] <= at) s = i;
+    goToToken(at - starts[s] > 2 ? starts[s] : (s > 0 ? starts[s - 1] : 0));
+    showBar();
+  }
+
+  function ahead() {
+    const at = tokenAt();
+    const next = parsed.sentenceStarts.find((x) => x > at);
+    if (next !== undefined) goToToken(next);
+    showBar();
+  }
+
+  function play() {
+    if (!parsed.tokens.length) return;
+    if (offset >= stage.maxOffset - 1) setOffset(0);
+    if (countdownSeconds > 0 && offset <= 1) {
+      counting = true;
+      let n = countdownSeconds;
+      const tick = () => {
+        if (!counting) return;
+        if (n === 0) { $("countdown").hidden = true; counting = false; startPlaying(); return; }
+        $("countdown").hidden = false;
+        $("countdown").textContent = n--;
+        countdownTimer = setTimeout(tick, 1000);
+      };
+      tick();
+      render();
+    } else {
+      startPlaying();
+    }
+  }
+
+  function startPlaying() { playing = true; last = performance.now(); render(); scheduleHide(); post(); }
+
+  function stopPlaying() {
+    playing = false; counting = false;
+    clearTimeout(countdownTimer);
+    $("countdown").hidden = true;
+    render(); showBar(); post();
+  }
+
+  function toggle() { (playing || counting) ? stopPlaying() : play(); }
+
+  function restart() { const was = playing || counting; stopPlaying(); goToToken(0); if (was) setTimeout(play, 350); }
+
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    if (jump !== null) {
+      const next = offset + (jump - offset) * (1 - Math.exp(-dt * 9));
+      if (Math.abs(next - jump) < 0.5) { offset = jump; jump = null; } else offset = next;
+      stage.setOffset(offset);
+    } else if (playing) {
+      offset += (wpm / 60) * (stage.pointsPerWord || 8) * dt;
+      if (offset >= stage.maxOffset) { offset = stage.maxOffset; stopPlaying(); }
+      stage.setOffset(offset);
+    }
+    stage.setHighlight(tokenAt(), null);
+    requestAnimationFrame(frame);
+  }
+
+  stage.onRelayout = () => {
+    // Keep the same word on the reading line after a resize or size change.
+    offset = Math.min(stage.offset, stage.maxOffset);
+  };
+
+  function render() {
+    const running = playing || counting;
+    $("play-label").textContent = running ? "Pause" : "Play";
+    $("play-icon").innerHTML = running
+      ? '<rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/>'
+      : '<polygon points="6 3 20 12 6 21 6 3" fill="currentColor"/>';
+    $("wpm").textContent = Math.round(wpm) + " WPM";
+    $("mirror").setAttribute("aria-pressed", style.display.mirror ? "true" : "false");
+  }
+
+  function restyle(change) {
+    style = Object.assign({}, style, change);
+    stage.setStyle(style);
+    render();
+  }
+
+  // Controls hide while playing and come back on any touch, click or key.
+  const bar = $("bar");
+  let hideTimer;
+  if (!showControls) bar.hidden = true;
+  function showBar() { bar.classList.remove("hide"); scheduleHide(); }
+  function scheduleHide() {
+    clearTimeout(hideTimer);
+    if (playing) hideTimer = setTimeout(() => bar.classList.add("hide"), 3000);
+  }
+
+  $("play").onclick = toggle;
+  $("restart").onclick = restart;
+  $("back").onclick = rewind;
+  $("ahead").onclick = ahead;
+  $("slower").onclick = () => { wpm = Math.max(40, wpm - 10); render(); showBar(); };
+  $("faster").onclick = () => { wpm = Math.min(320, wpm + 10); render(); showBar(); };
+  $("smaller").onclick = () => restyle({ fontSize: Math.max(20, style.fontSize - 4) });
+  $("larger").onclick = () => restyle({ fontSize: Math.min(140, style.fontSize + 4) });
+  $("mirror").onclick = () => restyle({ display: Object.assign({}, style.display, { mirror: !style.display.mirror }) });
+  const root = document.documentElement;
+  const fsRequest = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!fsRequest) $("fullscreen").hidden = true;
+  $("fullscreen").onclick = () => {
+    if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else fsRequest.call(root);
+  };
+
+  // Tap to play or pause; drag or scroll to move by hand.
+  const stageEl = $("stage");
+  let drag = null;
+  stageEl.addEventListener("pointerdown", (e) => { drag = { y: e.clientY, start: offset, moved: false }; stageEl.setPointerCapture(e.pointerId); });
+  stageEl.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dy = e.clientY - drag.y;
+    if (Math.abs(dy) > 6) drag.moved = true;
+    if (drag.moved) setOffset(drag.start - dy * (style.display.flip ? -1 : 1));
+  });
+  stageEl.addEventListener("pointerup", () => {
+    if (drag && !drag.moved) { toggle(); showBar(); }
+    drag = null;
+  });
+  stageEl.addEventListener("wheel", (e) => { e.preventDefault(); setOffset(offset + e.deltaY); showBar(); }, { passive: false });
+
+  document.addEventListener("keydown", (e) => {
+    if (!$("editor").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    const actions = {
+      " ": toggle, Enter: toggle, b: toggle, B: toggle,
+      ArrowDown: ahead, PageDown: ahead, ArrowUp: rewind, PageUp: rewind,
+      ArrowRight: () => $("faster").click(), ArrowLeft: () => $("slower").click(),
+      m: () => $("mirror").click(), M: () => $("mirror").click(),
+      "+": () => $("larger").click(), "=": () => $("larger").click(), "-": () => $("smaller").click(),
+      Home: restart, e: openEditor
+    };
+    if (actions[k]) { e.preventDefault(); actions[k](); showBar(); }
+  });
+
+  // Editor
+  function openEditor() { stopPlaying(); $("script").value = text; $("editor").hidden = false; $("script").focus(); }
+  $("edit").onclick = openEditor;
+  $("done").onclick = () => {
+    $("editor").hidden = true;
+    store("prompter.embed.draft", $("script").value);
+    load($("script").value);
+  };
+
+  // Parent pages can drive an embedded prompter with postMessage.
+  // window.frames[0].postMessage({ type: "prompter", action: "load", text: "..." }, "*")
+  window.addEventListener("message", (e) => {
+    const m = e.data;
+    if (!m || m.type !== "prompter") return;
+    switch (m.action) {
+      case "load": load(String(m.text || "")); break;
+      case "play": if (!playing && !counting) play(); break;
+      case "pause": if (playing || counting) stopPlaying(); break;
+      case "toggle": toggle(); break;
+      case "restart": restart(); break;
+      case "back": rewind(); break;
+      case "ahead": ahead(); break;
+      case "speed": wpm = Math.min(320, Math.max(40, Number(m.value) || wpm)); render(); break;
+      case "size": restyle({ fontSize: Math.min(140, Math.max(20, Number(m.value) || style.fontSize)) }); break;
+      case "mirror": restyle({ display: Object.assign({}, style.display, { mirror: !!m.value }) }); break;
+      case "theme": if (THEMES[m.value]) restyle(THEMES[m.value]); break;
+    }
+  });
+  function post() {
+    if (window.parent === window) return;
+    const n = parsed.tokens.length;
+    window.parent.postMessage({ type: "prompter:state", playing, progress: n > 1 ? tokenAt() / (n - 1) : 0, wordsPerMinute: wpm }, "*");
+  }
+
+  // Script source: ?text=, then ?src= (a URL that allows cross-origin reads), then this viewer's last draft, then the sample.
+  async function initialText() {
+    if (params.has("text")) return params.get("text");
+    if (params.has("src")) {
+      try {
+        const r = await fetch(params.get("src"));
+        if (r.ok) return await r.text();
+      } catch (e) {}
+    }
+    return recall("prompter.embed.draft") || SAMPLE;
+  }
+
+  if (params.get("title")) document.title = params.get("title") + " · Prompter";
+  render();
+  initialText().then((t) => {
+    load(t);
+    requestAnimationFrame((now) => { last = now; requestAnimationFrame(frame); });
+    if (flag("autoplay")) setTimeout(play, 300);
+  });
+})();
+</script>
+</body>
+</html>

@@ -254,6 +254,22 @@ final class PrompterController {
         settingsStore.settings.wordsPerMinute = (settings.wordsPerMinute + delta).clamped(to: range).rounded()
     }
 
+    /// Jumps to a point in the script, 0 (start) to 1 (end). Used by the phone remote's scrubber.
+    func seek(toProgress fraction: Double) {
+        guard !isEmpty else { return }
+        noteInteraction()
+        resumeCandidate = nil
+        let token = Int((fraction.clamped(to: 0...1) * Double(tokens.count - 1)).rounded())
+        place(atToken: token, animated: true)
+        if state == .finished { state = .paused }
+    }
+
+    /// Fractional token at the reading line, for remote displays.
+    var readingPosition: Double { scrollPosition }
+
+    /// The highlight currently drawn, for remote displays.
+    var currentHighlight: PrompterHighlight { highlight(at: currentToken) }
+
     func resumeFromLastPosition() {
         guard let token = resumeCandidate else { return }
         resumeCandidate = nil

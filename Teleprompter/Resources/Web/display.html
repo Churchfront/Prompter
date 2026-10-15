@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prompter">
+<meta name="theme-color" content="#090E14">
+<title>Prompter Display</title>
+<link rel="stylesheet" href="prompter.css">
+<style>
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: none; }
+  #waiting { background: var(--bg); }
+  #waiting[hidden], #countdown[hidden] { display: none; }
+  #fs {
+    position: fixed; right: var(--s3); bottom: var(--s3); z-index: 6;
+    background: rgba(15, 22, 31, 0.8); border-color: var(--line);
+    transition: opacity 0.3s ease-out;
+  }
+  #fs.hide { opacity: 0; pointer-events: none; }
+  #link { position: fixed; left: var(--s3); bottom: var(--s3); z-index: 6; transition: opacity 0.3s ease-out; }
+  #link.hide { opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="Script" role="document"></div>
+
+<div id="waiting" class="overlay">
+  <p class="t-eyebrow subtle">Prompter display</p>
+  <h1 class="t-title">Waiting for a script</h1>
+  <p class="muted" style="max-width: 32em">Open a script in the Prompter app, or pick one from the phone remote. It appears here on its own.</p>
+  <p id="waiting-status" class="status idle">Connecting</p>
+</div>
+
+<div id="countdown" class="overlay countdown" hidden aria-live="assertive"></div>
+
+<button id="fs" class="btn" type="button" aria-label="Full screen">
+  <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+  Full screen
+</button>
+<span id="link" class="status idle">Connecting</span>
+
+<script src="prompter.js"></script>
+<script>
+(function () {
+  "use strict";
+  const stage = new Prompter.PrompterStage(document.getElementById("stage"));
+  const follower = new Prompter.Follower(stage);
+  stage.onRelayout = () => follower.resync();
+  const waiting = document.getElementById("waiting");
+  const waitingStatus = document.getElementById("waiting-status");
+  const countdown = document.getElementById("countdown");
+  const link = document.getElementById("link");
+  const fs = document.getElementById("fs");
+  let scriptID = null;
+  let wakeLock = null;
+
+  function setLink(text, kind) {
+    for (const el of [link, waitingStatus]) {
+      el.textContent = text;
+      el.className = "status " + kind + (el === link && kind === "ok" ? " hide" : "");
+    }
+  }
+
+  // Keep the iPad awake while the page is showing.
+  async function keepAwake() {
+    try {
+      if ("wakeLock" in navigator && document.visibilityState === "visible" && !wakeLock) {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => (wakeLock = null));
+      }
+    } catch (e) { /* Not supported or not allowed; the screen may sleep. */ }
+  }
+  document.addEventListener("visibilitychange", keepAwake);
+
+  // Full screen where the browser allows it (iPad Safari does; iPhone does not).
+  const root = document.documentElement;
+  const canFullscreen = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+  const standalone = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  if (!canFullscreen || standalone) fs.classList.add("hide");
+  fs.addEventListener("click", () => {
+    keepAwake();
+    (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+  });
+  let hideTimer;
+  function showButton() {
+    if (!canFullscreen || standalone || document.fullscreenElement || document.webkitFullscreenElement) return;
+    fs.classList.remove("hide");
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => fs.classList.add("hide"), 4000);
+  }
+  document.addEventListener("pointerdown", () => { keepAwake(); showButton(); });
+  showButton();
+
+  const events = new EventSource("events");
+  events.addEventListener("open", () => setLink("Connected", "ok"));
+  events.addEventListener("error", () => setLink("Reconnecting", "warn"));
+
+  events.addEventListener("script", (e) => {
+    const s = JSON.parse(e.data);
+    if (!s.id) {
+      scriptID = null;
+      waiting.hidden = false;
+      return;
+    }
+    if (s.id !== scriptID || stage.text !== s.text) {
+      scriptID = s.id;
+      document.title = s.title + " · Prompter";
+      stage.setScript(s.text, s.tokens, s.cues);
+    }
+    waiting.hidden = true;
+    keepAwake();
+  });
+
+  events.addEventListener("style", (e) => stage.setStyle(JSON.parse(e.data)));
+
+  events.addEventListener("state", (e) => {
+    const st = JSON.parse(e.data);
+    if (!st.session) {
+      waiting.hidden = false;
+      countdown.hidden = true;
+      return;
+    }
+    const playing = st.state === "playing";
+    follower.push(st.position, playing);
+    stage.setHighlight(st.readUpTo, st.current);
+    if (st.state === "countdown" && st.countdown) {
+      countdown.hidden = false;
+      countdown.textContent = st.countdown;
+    } else {
+      countdown.hidden = true;
+    }
+  });
+})();
+</script>
+</body>
+</html>

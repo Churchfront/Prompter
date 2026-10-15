@@ -1,0 +1,37 @@
+# Publishes the standalone web prompter (embed.html) to GitHub Pages.
+# Run it from the Actions tab once Pages is enabled for this repository
+# (Settings > Pages > Source: GitHub Actions).
+name: Publish web prompter
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp Teleprompter/Resources/Web/embed.html _site/index.html
+          cp Teleprompter/Resources/Web/embed.html Teleprompter/Resources/Web/prompter.js Teleprompter/Resources/Web/prompter.css _site/
+          cp Teleprompter/Resources/Fonts/Figtree-VariableFont_wght.ttf _site/figtree.ttf
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

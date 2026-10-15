@@ -5,5 +5,8 @@
 	<!-- Mac: lets the hardened runtime ask for the microphone (Voice Follow). -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<!-- Mac: lets the app accept connections from the phone remote and the iPad display. -->
+	<key>com.apple.security.network.server</key>
+	<true/>
 </dict>
 </plist>

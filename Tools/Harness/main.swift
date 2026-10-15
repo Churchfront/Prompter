@@ -99,6 +99,9 @@ final class Harness {
         print("\nScreens")
         await screens()
 
+        print("\nPhone remote and iPad display")
+        await remoteLink()
+
         print(failures == 0 ? "\nAll harness checks passed." : "\n\(failures) harness check(s) failed.")
     }
 
@@ -175,7 +178,8 @@ final class Harness {
         settings(&settingsStore.settings)
         let script = store.create(title: "Harness script", body: body)
         let controller = PrompterController(script: script, settingsStore: settingsStore, scriptStore: store)
-        let view = AnyView(PrompterView(controller: controller).environment(settingsStore).environment(store))
+        let hub = RemoteHub(scriptStore: store, settingsStore: settingsStore, defaults: freshDefaults())
+        let view = AnyView(PrompterView(controller: controller).environment(settingsStore).environment(store).environment(hub))
         let hosting = host(view, size: size, compact: compact)
         return (controller, hosting, store, settingsStore, script)
     }
@@ -372,14 +376,15 @@ final class Harness {
         store.create(title: "Announcements: October", body: "Three quick things before we go. First, the fall retreat registration closes Friday. Second, we need volunteers for the kids ministry check-in team. Third, join us for the baptism Sunday on the 26th.")
         store.create(title: "Video intro: Serve Team", body: "Every Sunday, more than eighty volunteers make this room work. Here is what that looks like behind the scenes.")
         let settingsStore = SettingsStore(defaults: freshDefaults())
+        let screensHub = RemoteHub(scriptStore: store, settingsStore: settingsStore, defaults: freshDefaults())
 
         let phone = CGSize(width: 393, height: 852)
         let pad = CGSize(width: 1024, height: 1366)
 
-        var h: UIViewController = host(LibraryView().environment(store).environment(settingsStore), size: phone, compact: true)
+        var h: UIViewController = host(LibraryView().environment(store).environment(settingsStore).environment(screensHub), size: phone, compact: true)
         await wait(0.8)
         snapshot(h.view, "library-iphone")
-        h = host(LibraryView().environment(store).environment(settingsStore), size: pad, compact: false)
+        h = host(LibraryView().environment(store).environment(settingsStore).environment(screensHub), size: pad, compact: false)
         await wait(0.8)
         snapshot(h.view, "library-ipad")
 
@@ -426,6 +431,11 @@ final class HarnessAppDelegate: UIResponder, UIApplicationDelegate {
         let out = URL(fileURLWithPath: ProcessInfo.processInfo.environment["HARNESS_OUT"] ?? NSTemporaryDirectory())
         Task { @MainActor in
             let harness = Harness(window: window, out: out)
+            if CommandLine.arguments.contains("--serve") {
+                // Manual testing: the library with the remote on 7070 and 7071, until quit.
+                await harness.serve()
+                return
+            }
             await harness.run()
             exit(harness.failures == 0 ? 0 : 1)
         }

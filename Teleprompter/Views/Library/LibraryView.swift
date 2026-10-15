@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     @Environment(ScriptStore.self) private var store
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(RemoteHub.self) private var remoteHub
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var path: [UUID] = []
@@ -16,6 +17,7 @@ struct LibraryView: View {
     @State private var importing = false
     @State private var showSettings = false
     @State private var showNotion = false
+    @State private var showRemote = false
     @State private var notice: String?
 
     private var filtered: [Script] {
@@ -47,6 +49,17 @@ struct LibraryView: View {
             PrompterScreen(script: script)
                 .environment(store)
                 .environment(settingsStore)
+                .environment(remoteHub)
+        }
+        .sheet(isPresented: $showRemote) {
+            NavigationStack { RemoteView() }
+                .environment(remoteHub)
+        }
+        .onChange(of: remoteHub.openRequest) { _, id in
+            // The phone remote picked a script to present.
+            guard let id, let script = store.script(id: id), !script.isEmpty else { return }
+            remoteHub.openRequest = nil
+            presenting = script
         }
         .sheet(isPresented: $showNotion) {
             NotionImportView(store: store) { message in notice = message }
@@ -196,6 +209,13 @@ struct LibraryView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { showRemote = true } label: {
+                Image(systemName: remoteHub.isEnabled ? "iphone.radiowaves.left.and.right" : "iphone")
+            }
+            .accessibilityLabel("Phone remote and iPad display")
+            .accessibilityValue(remoteHub.isEnabled ? "On" : "Off")
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button { showSettings = true } label: {
                 Image(systemName: "gearshape")

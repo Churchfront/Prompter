@@ -22,13 +22,14 @@ mkdir -p "$BUILD" "$HARNESS_OUT"
 APP_SOURCES=("${(@f)$(find "$ROOT/Teleprompter" -name '*.swift' ! -path '*/App/TeleprompterApp.swift')}")
 "$SWIFTC" -target $TARGET -sdk "$SDK" -F "$FW" -Fsystem "$FW" $LIBS -I "$BUILD" -L "$BUILD" -lTeleprompterCore \
   -swift-version 5 -Onone -module-name Prompter \
-  $APP_SOURCES "$ROOT/Tools/Harness/main.swift" -o "$BUILD/Harness"
+  $APP_SOURCES "$ROOT"/Tools/Harness/*.swift -o "$BUILD/Harness"
 
 APP="$BUILD/Harness.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BUILD/Harness" "$APP/Contents/MacOS/Harness"
+cp "$BUILD/Harness" "$APP/Contents/MacOS/Harness" "$@"
 cp "$ROOT/Teleprompter/Resources/Fonts/"*.ttf "$ROOT/Teleprompter/Resources/SampleScript.txt" "$APP/Contents/Resources/"
+cp "$ROOT/Teleprompter/Resources/Web/"* "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

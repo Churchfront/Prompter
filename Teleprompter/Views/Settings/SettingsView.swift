@@ -180,7 +180,7 @@ struct SettingsView: View {
     }
 }
 
-private struct SectionHeader: View {
+struct SectionHeader: View {
     let text: String
     init(_ text: String) { self.text = text }
     var body: some View {

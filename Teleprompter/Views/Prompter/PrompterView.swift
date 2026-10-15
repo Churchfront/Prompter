@@ -7,6 +7,7 @@ struct PrompterScreen: View {
     let script: Script
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(ScriptStore.self) private var scriptStore
+    @Environment(RemoteHub.self) private var remoteHub
     @State private var controller: PrompterController?
 
     var body: some View {
@@ -18,8 +19,13 @@ struct PrompterScreen: View {
         }
         .onAppear {
             if controller == nil {
-                controller = PrompterController(script: script, settingsStore: settingsStore, scriptStore: scriptStore)
+                let created = PrompterController(script: script, settingsStore: settingsStore, scriptStore: scriptStore)
+                controller = created
+                remoteHub.attach(created)
             }
+        }
+        .onDisappear {
+            if let controller { remoteHub.detach(controller) }
         }
     }
 }
@@ -27,11 +33,13 @@ struct PrompterScreen: View {
 struct PrompterView: View {
     @Bindable var controller: PrompterController
     @Environment(SettingsStore.self) private var settingsStore
+    @Environment(RemoteHub.self) private var remoteHub
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showSettings = false
+    @State private var showRemote = false
 
     private var settings: ReaderSettings { settingsStore.settings }
 
@@ -47,8 +55,10 @@ struct PrompterView: View {
                     if controller.controlsVisible {
                         PrompterTopBar(controller: controller,
                                        isCompact: horizontalSizeClass == .compact,
+                                       remote: remoteHub,
                                        onClose: close,
-                                       onSettings: { showSettings = true })
+                                       onSettings: { showSettings = true },
+                                       onRemote: { showRemote = true })
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
                     Spacer(minLength: 0)
@@ -86,6 +96,12 @@ struct PrompterView: View {
         }
         .onChange(of: scenePhase) { _, phase in controller.handleScenePhase(phase) }
         .onChange(of: settingsStore.settings) { _, _ in controller.settingsDidChange() }
+        .onChange(of: remoteHub.closeRequest) { _, _ in close() }
+        .sheet(isPresented: $showRemote) {
+            NavigationStack { RemoteView() }
+                .environment(remoteHub)
+                .presentationDetents([.medium, .large])
+        }
         .sheet(isPresented: $showSettings) {
             NavigationStack { SettingsView(context: .prompter) }
                 .environment(settingsStore)
@@ -183,8 +199,10 @@ private struct ReadingMarker: View {
 private struct PrompterTopBar: View {
     let controller: PrompterController
     let isCompact: Bool
+    let remote: RemoteHub
     let onClose: () -> Void
     let onSettings: () -> Void
+    let onRemote: () -> Void
 
     var body: some View {
         HStack(spacing: Signal.Space.s3) {
@@ -234,6 +252,16 @@ private struct PrompterTopBar: View {
             .accessibilityLabel("Mirror mode")
             .accessibilityValue(controller.isMirrored ? "On" : "Off")
             .accessibilityHint("Flips the script for beam-splitter glass")
+
+            if remote.isEnabled {
+                Button(action: onRemote) {
+                    Image(systemName: "iphone.radiowaves.left.and.right")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                .buttonStyle(QuietButtonStyle(isSelected: remote.remoteCount + remote.displayCount > 0))
+                .accessibilityLabel("Phone remote and iPad display")
+                .accessibilityValue("\(remote.remoteCount) remote, \(remote.displayCount) display connected")
+            }
 
             Button(action: onSettings) {
                 Image(systemName: "slider.horizontal.3").font(.system(size: 17, weight: .semibold))
