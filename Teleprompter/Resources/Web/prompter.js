@@ -182,6 +182,12 @@
       this.textEl.querySelectorAll(".cue").forEach((c) => (c.style.fontSize = Math.max(14, s.fontSize * 0.42) * (s.display.scale || 1) + "px"));
 
       const lineHeight = parseFloat(getComputedStyle(this.textEl).lineHeight) || size * 1.2 * s.lineSpacing;
+      // Measure unmirrored and unflipped: client rects include transforms, and a
+      // flipped display would otherwise read the words bottom to top. The
+      // transform does not change layout, so lifting it for the measurement
+      // moves nothing on screen.
+      const flipped = this.flip.style.transform;
+      this.flip.style.transform = "none";
       const base = this.textEl.getBoundingClientRect();
       const top0 = base.top + readingY;
       // Group words into visual lines, then place each word along its line.
@@ -189,6 +195,7 @@
         const r = span.getClientRects()[0] || span.getBoundingClientRect();
         return { top: r.top - top0, bottom: r.bottom - top0, left: r.left, right: r.right };
       });
+      this.flip.style.transform = flipped;
       const ys = new Array(rects.length);
       let i = 0;
       while (i < rects.length) {
