@@ -220,6 +220,21 @@ final class RemoteHub {
             return .stream(events)
         case ("GET", "/state"):
             return .json(Data(json(statePayload()).utf8))
+        case ("OPTIONS", "/import"):
+            // The browser's preflight for Send to Prompter on the Churchfront portal.
+            guard role == .control, let origin = Self.portalOrigin(request) else {
+                return .text("Not allowed.", status: 403)
+            }
+            var response = RemoteResponse(status: 204)
+            response.headers = Self.corsHeaders(origin)
+            response.headers["Access-Control-Allow-Methods"] = "POST"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            // Chrome's Private Network Access: a public site reaching localhost.
+            response.headers["Access-Control-Allow-Private-Network"] = "true"
+            response.headers["Access-Control-Max-Age"] = "600"
+            return response
+        case ("POST", "/import"):
+            return importScript(request, role: role)
         case ("POST", "/command"):
             guard role == .control else { return .text("This port is display only.", status: 403) }
             // A JSON content type makes browsers preflight cross-site requests,
@@ -237,6 +252,69 @@ final class RemoteHub {
         default:
             return .text("Method not allowed.", status: 405)
         }
+    }
+
+    // MARK: Import from the Churchfront portal
+
+    /// Web pages allowed to send scripts: the portal, its Vercel previews, and local development.
+    static func isPortalOrigin(_ origin: String) -> Bool {
+        guard let url = URL(string: origin), let host = url.host?.lowercased() else { return false }
+        switch url.scheme {
+        case "https":
+            return host == "app.churchfront.com" || (host.hasPrefix("churchfront-portal-") && host.hasSuffix("-churchfront.vercel.app"))
+        case "http":
+            return host == "localhost" || host == "127.0.0.1"
+        default:
+            return false
+        }
+    }
+
+    /// The request's Origin when it is the portal.
+    private static func portalOrigin(_ request: RemoteRequest) -> String? {
+        guard let origin = request.headers["origin"], isPortalOrigin(origin) else { return nil }
+        return origin
+    }
+
+    private static func corsHeaders(_ origin: String) -> [String: String] {
+        ["Access-Control-Allow-Origin": origin, "Vary": "Origin"]
+    }
+
+    /// POST /import: Curriculum Studio's Send to Prompter. Only from this device
+    /// (the portal open in a browser on the Mac running Prompter) and, from a
+    /// browser, only from the portal. Creates or updates the script for that
+    /// course, opens it, and answers with the display and control addresses so
+    /// the portal can show them to an iPad and a phone.
+    private func importScript(_ request: RemoteRequest, role: RemoteRole) -> RemoteResponse {
+        let origin = request.headers["origin"]
+        var headers: [String: String] = [:]
+        if let origin, Self.isPortalOrigin(origin) { headers = Self.corsHeaders(origin) }
+        func fail(_ message: String, _ status: Int) -> RemoteResponse {
+            var response = RemoteResponse.text(message, status: status)
+            response.headers = headers
+            return response
+        }
+        guard role == .control else { return fail("This port is display only.", 403) }
+        guard request.fromLoopback else { return fail("Scripts can only be sent from this device.", 403) }
+        if let origin, !Self.isPortalOrigin(origin) { return fail("Not allowed.", 403) }
+        guard request.headers["content-type"]?.hasPrefix("application/json") == true else {
+            return fail("Send application/json.", 415)
+        }
+        guard let payload = try? JSONDecoder().decode(ImportPayload.self, from: request.body),
+              !payload.key.isEmpty, !payload.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return fail("Unreadable script.", 400)
+        }
+        let title = payload.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let source = ScriptSource(key: "churchfront:\(payload.key)", notionPageID: "",
+                                  courseName: payload.course ?? title, lessonTitle: title,
+                                  importedAt: .now, origin: "churchfront")
+        let result = scriptStore.upsertImported(title: title, body: ScriptStore.normalizeLineEndings(payload.text), source: source)
+        openRequest = result.script.id
+        pushLibrary()
+        let answer = ImportResult(id: result.script.id.uuidString, title: result.script.displayTitle,
+                                  created: result.created, control: controlURL, display: displayURL)
+        var response = RemoteResponse.json(Data(json(answer).utf8), status: result.created ? 201 : 200)
+        response.headers = headers
+        return response
     }
 
     func perform(_ command: RemoteCommand) {
@@ -457,4 +535,22 @@ extension RGBAColor {
         func byte(_ v: Double) -> Int { Int((v.clamped(to: 0...1) * 255).rounded()) }
         return String(format: "#%02X%02X%02X", byte(red), byte(green), byte(blue))
     }
+}
+
+/// Body of POST /import from the Churchfront portal.
+struct ImportPayload: Decodable {
+    /// The portal's course id: sending the same course again updates its script.
+    var key: String
+    var title: String
+    var course: String?
+    var text: String
+}
+
+/// Answer to POST /import: the script, and where an iPad (display) and a phone (control) open it.
+struct ImportResult: Encodable {
+    var id: String
+    var title: String
+    var created: Bool
+    var control: String?
+    var display: String?
 }

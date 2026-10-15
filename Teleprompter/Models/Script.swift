@@ -1,13 +1,19 @@
 import Foundation
 import TeleprompterCore
 
-/// A script imported from Notion: the course page and lesson it came from.
+/// An imported script: where it came from. Notion imports name the course page
+/// and lesson; scripts sent from the Churchfront portal set `origin` to
+/// "churchfront" and leave `notionPageID` empty.
 struct ScriptSource: Codable, Hashable {
     var key: String
     var notionPageID: String
     var courseName: String
     var lessonTitle: String
     var importedAt: Date
+    /// nil for Notion (older files have no value), "churchfront" for the portal.
+    var origin: String? = nil
+
+    var isFromNotion: Bool { origin == nil || origin == "notion" }
 }
 
 struct Script: Identifiable, Codable, Hashable {

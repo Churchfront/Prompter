@@ -27,7 +27,7 @@ APP_SOURCES=("${(@f)$(find "$ROOT/Teleprompter" -name '*.swift' ! -path '*/App/T
 APP="$BUILD/Harness.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BUILD/Harness" "$APP/Contents/MacOS/Harness" "$@"
+cp "$BUILD/Harness" "$APP/Contents/MacOS/Harness"
 cp "$ROOT/Teleprompter/Resources/Fonts/"*.ttf "$ROOT/Teleprompter/Resources/SampleScript.txt" "$APP/Contents/Resources/"
 cp "$ROOT/Teleprompter/Resources/Web/"* "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
@@ -44,4 +44,4 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 codesign -s - --force "$APP" >/dev/null 2>&1
-"$APP/Contents/MacOS/Harness"
+"$APP/Contents/MacOS/Harness" "$@"

@@ -56,10 +56,18 @@ struct LibraryView: View {
                 .environment(remoteHub)
         }
         .onChange(of: remoteHub.openRequest) { _, id in
-            // The phone remote picked a script to present.
+            // The phone remote picked a script, or Curriculum Studio sent one.
             guard let id, let script = store.script(id: id), !script.isEmpty else { return }
             remoteHub.openRequest = nil
-            presenting = script
+            guard presenting != nil else { presenting = script; return }
+            // Swapping the item of a presented cover only dismisses it, so close
+            // the current prompter first and present once it has gone. This also
+            // reloads a script that was sent again with new text.
+            presenting = nil
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(700))
+                presenting = store.script(id: id) ?? script
+            }
         }
         .sheet(isPresented: $showNotion) {
             NotionImportView(store: store) { message in notice = message }
