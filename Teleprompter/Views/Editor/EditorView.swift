@@ -141,11 +141,15 @@ struct EditorView: View {
                 Button { importing = true } label: { Label("Import text file", systemImage: "doc.badge.plus") }
                 if let source = store.script(id: scriptID)?.source {
                     Divider()
-                    Button { Task { await refreshFromNotion() } } label: {
-                        Label("Refresh from Notion", systemImage: "arrow.triangle.2.circlepath")
+                    if source.isFromNotion {
+                        Button { Task { await refreshFromNotion() } } label: {
+                            Label("Refresh from Notion", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(refreshing)
+                        Text("From \(source.courseName), \(source.lessonTitle)")
+                    } else {
+                        Text("Sent from Curriculum Studio: \(source.courseName)")
                     }
-                    .disabled(refreshing)
-                    Text("From \(source.courseName), \(source.lessonTitle)")
                 }
                 Divider()
                 Button {

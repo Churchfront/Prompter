@@ -15,6 +15,8 @@ struct RemoteRequest: Sendable {
     var query: [String: String]
     var headers: [String: String]
     var body: Data
+    /// The request came from this device itself (127.0.0.1 or ::1), not the network.
+    var fromLoopback = false
 }
 
 struct RemoteResponse: Sendable {
@@ -23,6 +25,8 @@ struct RemoteResponse: Sendable {
     var body = Data()
     /// Keeps the connection open as a Server-Sent Events stream, starting with these events.
     var streamEvents: [String]?
+    /// Extra response headers (CORS for the Churchfront portal's script import).
+    var headers: [String: String] = [:]
 
     static func text(_ string: String, status: Int = 200) -> RemoteResponse {
         RemoteResponse(status: status, body: Data(string.utf8))
@@ -194,6 +198,8 @@ final class RemoteHTTPServer: @unchecked Sendable {
     }
 
     private func dispatch(_ request: RemoteRequest, on connection: NWConnection) {
+        var request = request
+        request.fromLoopback = Self.isLoopback(connection.endpoint)
         let handler = handler
         Task { @MainActor [weak self] in
             let response = handler?(request) ?? .notFound
@@ -206,6 +212,9 @@ final class RemoteHTTPServer: @unchecked Sendable {
         head += "Content-Type: \(response.contentType)\r\n"
         head += "Cache-Control: no-store\r\n"
         head += "X-Content-Type-Options: nosniff\r\n"
+        for (name, value) in response.headers.sorted(by: { $0.key < $1.key }) {
+            head += "\(name): \(value)\r\n"
+        }
         if let events = response.streamEvents {
             head += "Connection: keep-alive\r\n\r\n"
             var data = Data(head.utf8)
@@ -237,6 +246,18 @@ final class RemoteHTTPServer: @unchecked Sendable {
     }
 
     // MARK: Parsing
+
+    /// True when the peer is this device: the portal's Send to Prompter runs in a
+    /// browser on the same Mac, while phones and iPads connect over the network.
+    static func isLoopback(_ endpoint: NWEndpoint) -> Bool {
+        guard case let .hostPort(host, _) = endpoint else { return false }
+        switch host {
+        case let .ipv4(address): return address == .loopback
+        case let .ipv6(address): return address == .loopback || address == IPv6Address("::ffff:127.0.0.1")
+        case let .name(name, _): return name == "localhost"
+        @unknown default: return false
+        }
+    }
 
     /// A complete request from the buffer, or nil if more bytes are needed.
     static func parse(_ buffer: Data) -> RemoteRequest? {
@@ -274,6 +295,7 @@ final class RemoteHTTPServer: @unchecked Sendable {
         switch status {
         case 200: "OK"
         case 204: "No Content"
+        case 201: "Created"
         case 400: "Bad Request"
         case 403: "Forbidden"
         case 404: "Not Found"

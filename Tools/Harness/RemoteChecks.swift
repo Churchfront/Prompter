@@ -27,6 +27,20 @@ extension Harness {
                           body: String(data: data, encoding: .utf8) ?? "")
     }
 
+    /// Like http, with request headers, and the response headers back.
+    func httpHeaders(_ method: String, _ url: String, headers: [String: String], body: String? = nil) async -> (status: Int, body: String, headers: [String: String]) {
+        var request = URLRequest(url: URL(string: url)!)
+        request.httpMethod = method
+        request.timeoutInterval = 5
+        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
+        if let body { request.httpBody = Data(body.utf8) }
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse else { return (0, "", [:]) }
+        var out: [String: String] = [:]
+        for (key, value) in http.allHeaderFields { out[String(describing: key).lowercased()] = String(describing: value) }
+        return (http.statusCode, String(data: data, encoding: .utf8) ?? "", out)
+    }
+
     func stateJSON(_ base: String) async -> [String: Any] {
         let result = await http("GET", "\(base)/state")
         return (try? JSONSerialization.jsonObject(with: Data(result.body.utf8))) as? [String: Any] ?? [:]
@@ -148,6 +162,49 @@ extension Harness {
         let before = hub.closeRequest
         _ = await http("POST", control + "/command", json: #"{"action":"close"}"#)
         check("Close from the phone asks the prompter to close", hub.closeRequest == before + 1)
+
+        // Send to Prompter from the Churchfront portal (POST /import).
+        let portal = "https://app.churchfront.com"
+        let preflight = await httpHeaders("OPTIONS", control + "/import", headers: [
+            "Origin": portal, "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type", "Access-Control-Request-Private-Network": "true"])
+        check("Import preflight approves the portal, including Private Network Access",
+              preflight.status == 204 && preflight.headers["access-control-allow-origin"] == portal
+                && preflight.headers["access-control-allow-private-network"] == "true",
+              "\(preflight.status) \(preflight.headers)")
+        let strangerPreflight = await httpHeaders("OPTIONS", control + "/import", headers: ["Origin": "https://example.com"])
+        check("Import preflight refuses other websites", strangerPreflight.status == 403)
+
+        let countBefore = store.scripts.count
+        let send = #"{"key":"course-1","title":"NET 102 The OSI Model","course":"NET 102","text":"[INTRODUCTION]\r\nIn Networking 101, we covered a lot of ground."}"#
+        let sent = await httpHeaders("POST", control + "/import", headers: ["Origin": portal, "Content-Type": "application/json"], body: send)
+        let answer = (try? JSONSerialization.jsonObject(with: Data(sent.body.utf8))) as? [String: Any] ?? [:]
+        let sentScript = store.script(forSourceKey: "churchfront:course-1")
+        check("Import from the portal creates the script and opens it",
+              sent.status == 201 && sentScript != nil && hub.openRequest == sentScript?.id
+                && sentScript?.body == "[INTRODUCTION]\nIn Networking 101, we covered a lot of ground."
+                && sentScript?.source?.isFromNotion == false && store.scripts.count == countBefore + 1,
+              "\(sent.status) \(sent.body)")
+        check("Import answers with CORS and the display and control addresses",
+              sent.headers["access-control-allow-origin"] == portal
+                && (answer["display"] as? String)?.hasSuffix(":17071") == true
+                && (answer["control"] as? String)?.hasSuffix(":17070") == true,
+              "\(answer)")
+        let resend = #"{"key":"course-1","title":"NET 102 The OSI Model","text":"Revised script."}"#
+        let again = await httpHeaders("POST", control + "/import", headers: ["Origin": portal, "Content-Type": "application/json"], body: resend)
+        check("Sending the same course again updates it in place",
+              again.status == 200 && store.scripts.count == countBefore + 1
+                && store.script(forSourceKey: "churchfront:course-1")?.body == "Revised script.", "\(again.status)")
+        let stranger = await httpHeaders("POST", control + "/import", headers: ["Origin": "https://example.com", "Content-Type": "application/json"], body: send)
+        check("Import refuses other websites", stranger.status == 403 && store.scripts.count == countBefore + 1)
+        if let lan = (answer["control"] as? String) {
+            let fromNetwork = await httpHeaders("POST", lan + "/import", headers: ["Origin": portal, "Content-Type": "application/json"], body: send)
+            check("Import refuses requests from the network, not this device", fromNetwork.status == 403, "\(fromNetwork.status) via \(lan)")
+        }
+        let viaDisplay = await httpHeaders("POST", display + "/import", headers: ["Origin": portal, "Content-Type": "application/json"], body: send)
+        check("Present port refuses imports", viaDisplay.status == 403)
+        let notJSON = await httpHeaders("POST", control + "/import", headers: ["Origin": portal, "Content-Type": "text/plain"], body: send)
+        check("Import needs JSON", notJSON.status == 415)
 
         controller.close()
         hub.detach(controller)
