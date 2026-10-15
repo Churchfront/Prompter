@@ -240,6 +240,15 @@
       return ys[i] + (ys[i + 1] - ys[i]) * f;
     }
 
+    /* Timed mode: the app's steady scroll distance in average words, mapped with
+       this screen's average height per word, so the display moves at one constant
+       speed and still reaches the end with the app. */
+    offsetForTimed(timed) {
+      const ys = this.readingY;
+      if (!ys.length) return 0;
+      return Math.min(Math.max(ys[0] + timed * this.pointsPerWord, 0), this.maxOffset);
+    }
+
     positionFor(offset) {
       const ys = this.readingY;
       if (!ys.length) return 0;
@@ -318,9 +327,11 @@
       requestAnimationFrame(frame);
     }
 
-    push(position, playing) {
+    /* timed: the app's steady timed-mode distance, when it sends one. */
+    push(position, playing, timed) {
       const now = performance.now();
-      const offset = position <= -1 ? 0 : this.stage.offsetFor(position);
+      this.timed = typeof timed === "number" && isFinite(timed) ? timed : null;
+      const offset = this.goalFor(position);
       if (this.target !== null && this.playing && playing) {
         const dt = (now - this.sampleAt) / 1000;
         if (dt > 0.005 && dt < 0.5) {
@@ -340,9 +351,14 @@
     }
 
     /* After a relayout, the same word position maps to a new offset. */
+    goalFor(position) {
+      if (this.timed !== null && this.timed !== undefined) return this.stage.offsetForTimed(this.timed);
+      return position <= -1 ? 0 : this.stage.offsetFor(position);
+    }
+
     resync() {
       if (this.position === undefined) return;
-      this.target = this.position <= -1 ? 0 : this.stage.offsetFor(this.position);
+      this.target = this.goalFor(this.position);
       this.shown = this.target;
       this.velocity = 0;
       this.stage.setOffset(this.shown);

@@ -124,7 +124,7 @@
       return;
     }
     const playing = st.state === "playing";
-    follower.push(st.position, playing);
+    follower.push(st.position, playing, st.mode === "timed" ? st.timed : null);
     stage.setHighlight(st.readUpTo, st.current);
     if (st.state === "countdown" && st.countdown) {
       countdown.hidden = false;

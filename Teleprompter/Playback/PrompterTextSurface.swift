@@ -103,9 +103,14 @@ final class PrompterTextSurface: UITextView, PrompterSurface {
     var currentOffset: CGFloat { contentOffset.y }
 
     var maxOffset: CGFloat {
-        let used = textLayout.usedRect(for: textContainer).height
-        return max(0, used + textContainerInset.top + textContainerInset.bottom - bounds.height)
+        max(0, textHeight + textContainerInset.top + textContainerInset.bottom - bounds.height)
     }
+
+    /// Height of the laid-out text, measured after each full layout. Recoloring
+    /// words (highlight and dimming) invalidates layout without changing any
+    /// metrics, and a live usedRect read in between can report only part of
+    /// the text, which would end timed scrolling early.
+    private var textHeight: CGFloat = 0
 
     var lineHeight: CGFloat { style.font.lineHeight * style.lineSpacing }
 
@@ -174,6 +179,7 @@ final class PrompterTextSurface: UITextView, PrompterSurface {
         let side = (bounds.width * style.margin).rounded()
         textContainerInset = UIEdgeInsets(top: readingY, left: side, bottom: bounds.height - readingY, right: side)
         textLayout.ensureLayout(for: textContainer)
+        textHeight = textLayout.usedRect(for: textContainer).height
         rebuildGeometry()
         let restored = min(max(CGFloat(geometry.offset(forPosition: anchor)), 0), maxOffset)
         contentOffset = CGPoint(x: 0, y: restored)

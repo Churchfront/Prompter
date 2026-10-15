@@ -267,6 +267,17 @@ final class PrompterController {
     /// Fractional token at the reading line, for remote displays.
     var readingPosition: Double { scrollPosition }
 
+    /// Timed mode only: how far the reading line is into the script, in average
+    /// words (offset over the average height per word). It grows at one steady
+    /// rate while playing, so remote displays can scroll at a constant speed
+    /// instead of following where each word falls on its line.
+    var timedPosition: Double? {
+        guard mode == .timed, let surface else { return nil }
+        let geometry = surface.geometry
+        guard let first = geometry.readingY.first, geometry.pointsPerWord > 0 else { return nil }
+        return (Double(offset) - first) / geometry.pointsPerWord
+    }
+
     /// The highlight currently drawn, for remote displays.
     var currentHighlight: PrompterHighlight { highlight(at: currentToken) }
 
@@ -645,6 +656,9 @@ final class PrompterController {
     }
 
     private func highlight(at token: Int) -> PrompterHighlight {
+        // Timed mode scrolls at one steady speed with no read-ahead marking:
+        // nothing is dimmed or highlighted.
+        if mode == .timed { return PrompterHighlight(readUpTo: 0, current: nil) }
         let s = settings
         let readUpTo: Int
         if !s.dimReadText {
