@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import QuartzCore
 import Observation
 import TeleprompterCore
@@ -77,6 +78,8 @@ final class RemoteHub {
     @ObservationIgnored private var displayServer: RemoteHTTPServer?
     @ObservationIgnored private var serverStatus: [RemoteRole: RemoteHTTPServer.Status] = [:]
     @ObservationIgnored private var timer: Timer?
+    /// Re-reads this device's addresses when it joins or leaves a network.
+    @ObservationIgnored private var pathMonitor: NWPathMonitor?
     @ObservationIgnored private var ticks = 0
     @ObservationIgnored private var lastState = ""
     @ObservationIgnored private var lastStyle = ""
@@ -135,6 +138,12 @@ final class RemoteHub {
     private func start() {
         stop()
         refreshAddresses()
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] _ in
+            Task { @MainActor in self?.refreshAddresses() }
+        }
+        monitor.start(queue: .main)
+        pathMonitor = monitor
         status = .starting
         let control = RemoteHTTPServer(role: .control, port: controlPort)
         let displayServer = RemoteHTTPServer(role: .display, port: displayPort)
@@ -160,6 +169,8 @@ final class RemoteHub {
     private func stop() {
         timer?.invalidate()
         timer = nil
+        pathMonitor?.cancel()
+        pathMonitor = nil
         control?.stop()
         displayServer?.stop()
         control = nil
@@ -310,6 +321,8 @@ final class RemoteHub {
         let result = scriptStore.upsertImported(title: title, body: ScriptStore.normalizeLineEndings(payload.text), source: source)
         openRequest = result.script.id
         pushLibrary()
+        // Read the address now: the Mac may have changed networks since the remote started.
+        refreshAddresses()
         let answer = ImportResult(id: result.script.id.uuidString, title: result.script.displayTitle,
                                   created: result.created, control: controlURL, display: displayURL)
         var response = RemoteResponse.json(Data(json(answer).utf8), status: result.created ? 201 : 200)
