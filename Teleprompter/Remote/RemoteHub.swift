@@ -345,11 +345,6 @@ final class RemoteHub {
         case "displayScale":
             display.scale = ((display.scale + (command.value ?? 0)) * 100).rounded() / 100
             display.scale = display.scale.clamped(to: DisplayOptions.scaleRange)
-        case "voiceCommands":
-            // value 1 turns "Teleprompter, ..." commands on, 0 off; no value toggles.
-            let on = command.value.map { $0 != 0 } ?? !settingsStore.settings.voiceCommands
-            settingsStore.settings.voiceCommands = on
-            session?.settingsDidChange()
         case "fontSize":
             settingsStore.settings.fontSize = (settingsStore.settings.fontSize + (command.value ?? 0))
                 .clamped(to: ReaderSettings.fontSizeRange)
@@ -438,14 +433,9 @@ final class RemoteHub {
     func statePayload() -> StatePayload {
         let s = settingsStore.settings
         guard let session else {
-            var idle = StatePayload(session: false, mode: s.mode.rawValue, wordsPerMinute: s.wordsPerMinute)
-            idle.voiceCommands = s.voiceCommands
-            return idle
+            return StatePayload(session: false, mode: s.mode.rawValue, wordsPerMinute: s.wordsPerMinute)
         }
         var payload = StatePayload(session: true, mode: session.mode.rawValue, wordsPerMinute: s.wordsPerMinute)
-        payload.voiceCommands = s.voiceCommands
-        payload.commands = "\(session.commandListening)"
-        payload.heard = session.heardCommand.map { HeardPayload(id: $0.id.uuidString, text: $0.text) }
         payload.scriptID = session.scriptID.uuidString
         switch session.state {
         case .ready: payload.state = "ready"
@@ -527,17 +517,6 @@ struct StatePayload: Encodable {
     var readUpTo = 0
     var current: [Int]?
     var mirror = false
-    /// "Teleprompter, ..." voice commands are turned on.
-    var voiceCommands = false
-    /// Microphone status for commands: off, starting, listening, unavailable.
-    var commands = "off"
-    /// The command just heard, for a brief confirmation on the pages.
-    var heard: HeardPayload?
-}
-
-struct HeardPayload: Encodable {
-    var id: String
-    var text: String
 }
 
 struct StylePayload: Encodable {

@@ -15,7 +15,5 @@ final class TeleprompterCoreTests: XCTestCase {
     func testUnitChecks() { run(UnitChecks.all) }
 
     func testAcceptanceScenarios() { run(AcceptanceScenarios.all) }
-
-    func testVoiceCommands() { run(VoiceCommandChecks.all) }
 }
 #endif
