@@ -241,6 +241,11 @@ extension Harness {
         let settingsStore = SettingsStore(defaults: freshDefaults())
         settingsStore.settings.mode = .timed
         let hub = RemoteHub(scriptStore: store, settingsStore: settingsStore, defaults: freshDefaults())
+        // "--serve 18070" serves on 18070 and 18071, beside an installed Prompter on the defaults.
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--serve"), i + 1 < args.count, let port = UInt16(args[i + 1]) {
+            hub.setPorts(control: port, display: port + 1)
+        }
         hub.isEnabled = true
         _ = host(LibraryView().environment(store).environment(settingsStore).environment(hub),
                  size: CGSize(width: 1024, height: 768), compact: false)

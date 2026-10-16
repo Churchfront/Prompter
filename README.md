@@ -177,7 +177,7 @@ Verified:
   - opening from a `prompter://` link (5 checks): only that scheme is handled, it turns the ports on, and opening it again while running changes nothing
   - the phone remote and display link (31 checks): both ports serve their pages, nothing else is served, the display port refuses commands, play, pause, scrubbing, speed, mode, display-only mirror and size, script picking and closing from the phone, the event stream order and rate (about 30 positions a second while playing), the ports closing when turned off, and portal imports (preflight, create, update in place, other websites, network clients and the display port refused, JSON required)
 
-  It also renders iPhone- and iPad-sized screens to `Tools/Harness/Screenshots`. `Tools/run-app-harness.sh --serve` runs the library with the remote on 7070 and 7071 for testing in a browser.
+  It also renders iPhone- and iPad-sized screens to `Tools/Harness/Screenshots`. `Tools/run-app-harness.sh --serve` (or `--serve 18070` to use other ports beside an installed Prompter) runs the library with the remote on 7070 and 7071 for testing in a browser.
 
 - **Web pages**: the remote, display and embed were exercised in a browser against the running harness: opening a script from the phone, play with countdown, live highlight and dimming on the display, display-only mirror, the embed's keyboard play, and the iframe `postMessage` API. Display motion measured at 120 frames a second with no backward steps.
 
