@@ -8,6 +8,18 @@
 	<!-- Phone remote and iPad display: other devices on the network open pages this app serves. -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>CuePrompter serves the phone remote and the iPad display to devices on your Wi-Fi network, so they can control and show the script.</string>
+	<!-- prompter://send opens the app from the portal's Send to Teleprompter. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.churchfront.prompter</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>prompter</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Figtree-VariableFont_wght.ttf</string>

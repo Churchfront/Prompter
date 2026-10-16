@@ -23,6 +23,11 @@ struct TeleprompterApp: App {
                 .environment(remoteHub)
                 .tint(Signal.accent)
                 .preferredColorScheme(settingsStore.settings.appearance.colorScheme)
+                // prompter://send, from the portal's Send to Teleprompter: open
+                // CuePrompter with the phone remote and display ports on.
+                .onOpenURL { url in
+                    if url.host == "send" { remoteHub.isEnabled = true }
+                }
         }
     }
 }

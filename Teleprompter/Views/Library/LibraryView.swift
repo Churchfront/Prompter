@@ -17,6 +17,7 @@ struct LibraryView: View {
     @State private var importing = false
     @State private var showSettings = false
     @State private var showNotion = false
+    @State private var showChurchfront = false
     @State private var showRemote = false
     @State private var notice: String?
 
@@ -73,6 +74,12 @@ struct LibraryView: View {
             NotionImportView(store: store) { message in notice = message }
                 .environment(store)
                 .environment(settingsStore)
+        }
+        .sheet(isPresented: $showChurchfront) {
+            ChurchfrontImportView(store: store) { message, id in
+                if let id { path = [id] } else { notice = message }
+            }
+            .environment(store)
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack { SettingsView(context: .library) }
@@ -240,6 +247,7 @@ private extension LibraryView {
                 Button(action: pasteScript) { Label("Paste from clipboard", systemImage: "doc.on.clipboard") }
                 Button { importing = true } label: { Label("Import text file", systemImage: "doc.badge.plus") }
                 Button { showNotion = true } label: { Label("From Notion", systemImage: "books.vertical") }
+                Button { showChurchfront = true } label: { Label("From Churchfront", systemImage: "building.columns") }
             } label: {
                 Label("Import", systemImage: "square.and.arrow.down")
                     .signal(.label)

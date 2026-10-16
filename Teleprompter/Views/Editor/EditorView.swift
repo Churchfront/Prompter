@@ -148,7 +148,11 @@ struct EditorView: View {
                         .disabled(refreshing)
                         Text("From \(source.courseName), \(source.lessonTitle)")
                     } else {
-                        Text("Sent from Curriculum Studio: \(source.courseName)")
+                        Button { Task { await refreshFromChurchfront() } } label: {
+                            Label("Refresh from Churchfront", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(refreshing)
+                        Text("From the Churchfront portal: \(source.courseName)")
                     }
                 }
                 Divider()
@@ -238,6 +242,26 @@ struct EditorView: View {
             } else {
                 notice = "This lesson's script was not found in Notion. It may have been renamed or moved."
             }
+        } catch {
+            notice = error.localizedDescription
+        }
+    }
+
+    private func refreshFromChurchfront() async {
+        guard let script = store.script(id: scriptID), let key = ChurchfrontImporter.portalKey(of: script) else { return }
+        guard ChurchfrontClient.isSignedIn else {
+            notice = "Sign in to Churchfront first: in the library, choose Import, then From Churchfront."
+            return
+        }
+        saveNow()
+        refreshing = true
+        defer { refreshing = false }
+        do {
+            let result = try await ChurchfrontImporter.download(key, into: store)
+            title = result.script.title
+            bodyText = result.script.body
+            hasUnsavedChanges = false
+            notice = "Updated from the portal."
         } catch {
             notice = error.localizedDescription
         }
