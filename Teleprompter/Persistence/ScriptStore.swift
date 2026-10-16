@@ -255,7 +255,7 @@ final class ScriptStore {
         guard !defaults.bool(forKey: key) else { return }
         defaults.set(true, forKey: key)
         guard scripts.isEmpty else { return }
-        create(title: "Welcome to Prompter", body: SampleScript.text)
+        create(title: "Welcome to CuePrompter", body: SampleScript.text)
     }
 }
 

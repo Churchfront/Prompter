@@ -32,9 +32,9 @@ enum SpeechIssue: Equatable {
     var message: String {
         switch self {
         case .microphoneDenied:
-            "Voice Follow needs the microphone to hear where you are in the script. Turn on Microphone for Prompter in Settings. Audio is never recorded or saved."
+            "Voice Follow needs the microphone to hear where you are in the script. Turn on Microphone for CuePrompter in Settings. Audio is never recorded or saved."
         case .speechRecognitionDenied:
-            "Voice Follow uses speech recognition to match your words to the script. Turn on Speech Recognition for Prompter in Settings."
+            "Voice Follow uses speech recognition to match your words to the script. Turn on Speech Recognition for CuePrompter in Settings."
         case .restricted:
             "Speech recognition is restricted on this device, often by Screen Time or a device profile. Timed Scroll works without it."
         case .recognizerUnavailable:

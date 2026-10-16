@@ -55,15 +55,15 @@ private struct NotionConnectView: View {
             VStack(alignment: .leading, spacing: Signal.Space.s4) {
                 Text("Notion").signal(.eyebrow).foregroundStyle(Signal.accent)
                 Text("Connect your course docs").signal(.heading).foregroundStyle(Signal.ink)
-                Text("Prompter reads lesson scripts from Notion pages you choose. It never edits Notion. Setup takes about two minutes and happens once per device.")
+                Text("CuePrompter reads lesson scripts from Notion pages you choose. It never edits Notion. Setup takes about two minutes and happens once per device.")
                     .signal(.bodyLarge).foregroundStyle(Signal.inkMuted)
 
-                step(1, "Create an integration", "Open notion.so/my-integrations, choose New integration, name it Prompter, pick your workspace, and save. Read content is the only capability it needs.")
+                step(1, "Create an integration", "Open notion.so/my-integrations, choose New integration, name it CuePrompter, pick your workspace, and save. Read content is the only capability it needs.")
                 Button("Open My Integrations") {
                     if let url = URL(string: "https://www.notion.so/my-integrations") { openURL(url) }
                 }
                 .buttonStyle(.signalSecondary)
-                step(2, "Share your courses with it", "In Notion, open Course Development, choose ••• > Connections, and add Prompter. Every course page under it is included.")
+                step(2, "Share your courses with it", "In Notion, open Course Development, choose ••• > Connections, and add CuePrompter. Every course page under it is included.")
                 step(3, "Paste the secret", "Back in the integration settings, copy the Internal Integration Secret and paste it here. It is stored in this device's Keychain.")
 
                 SecureField("Internal Integration Secret", text: $token)
@@ -156,7 +156,7 @@ private struct NotionPagePicker: View {
             } header: {
                 Text(loading ? "Searching" : "\(pages.count) pages").signal(.eyebrow).foregroundStyle(Signal.inkSubtle)
             } footer: {
-                Text("Only pages shared with your Prompter integration appear here.")
+                Text("Only pages shared with your CuePrompter integration appear here.")
             }
             Section {
                 Button("Disconnect Notion", role: .destructive, action: onDisconnect)
@@ -208,7 +208,7 @@ private struct NotionLessonPicker: View {
                     .listRowBackground(Signal.surface)
             }
             if !loading && lessons.isEmpty && error == nil {
-                Text("No scripts found. Prompter looks for toggles titled \"Script\" under each lesson heading.")
+                Text("No scripts found. CuePrompter looks for toggles titled \"Script\" under each lesson heading.")
                     .signal(.body).foregroundStyle(Signal.inkMuted)
                     .listRowBackground(Signal.surface)
             }

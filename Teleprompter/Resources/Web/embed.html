@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#090E14">
-<title>Prompter</title>
-<meta name="description" content="Churchfront Prompter: a timed-scroll teleprompter that runs in any browser or inside an iframe.">
+<title>CuePrompter</title>
+<meta name="description" content="CuePrompter: a timed-scroll teleprompter that runs in any browser or inside an iframe.">
 <link rel="stylesheet" href="prompter.css">
 <style>
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
@@ -44,7 +44,7 @@
 <div id="stage" role="document" aria-label="Script. Tap to play or pause."></div>
 <div id="countdown" class="overlay countdown" hidden aria-live="assertive"></div>
 
-<div class="bar" id="bar" role="toolbar" aria-label="Prompter controls">
+<div class="bar" id="bar" role="toolbar" aria-label="CuePrompter controls">
   <div class="group">
     <button class="btn btn-quiet" id="edit" type="button" aria-label="Edit script">
       <svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -87,7 +87,7 @@
 <div id="editor" hidden>
   <div class="row">
     <div>
-      <p class="t-eyebrow subtle" style="margin:0">Prompter</p>
+      <p class="t-eyebrow subtle" style="margin:0">CuePrompter</p>
       <h1 class="t-heading">Script</h1>
     </div>
     <button class="btn btn-primary" id="done" type="button" style="--h:44px">Done</button>
@@ -350,7 +350,7 @@
     return recall("prompter.embed.draft") || SAMPLE;
   }
 
-  if (params.get("title")) document.title = params.get("title") + " · Prompter";
+  if (params.get("title")) document.title = params.get("title") + " · CuePrompter";
   render();
   initialText().then((t) => {
     load(t);

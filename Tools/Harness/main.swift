@@ -112,7 +112,7 @@ final class Harness {
         let defaults = freshDefaults()
         let store = ScriptStore(directory: dir, defaults: defaults)
         check("Sample script is created on first launch",
-              store.scripts.count == 1 && store.scripts.first?.title == "Welcome to Prompter")
+              store.scripts.count == 1 && store.scripts.first?.title == "Welcome to CuePrompter")
 
         let special = "He is risen! 🙌🏽 “Quotes”, dashes, ellipses… and ünïcode.\n\nSecond paragraph; still here."
         let script = store.create(title: "Easter", body: special)
@@ -131,7 +131,7 @@ final class Harness {
         check("Resume position is saved", back?.lastPosition == 42)
         check("Deleted script stays deleted", copy.map { reloaded.script(id: $0.id) == nil } ?? false)
 
-        if let sample = reloaded.scripts.first(where: { $0.title == "Welcome to Prompter" }) {
+        if let sample = reloaded.scripts.first(where: { $0.title == "Welcome to CuePrompter" }) {
             reloaded.delete(id: sample.id)
         }
         let again = ScriptStore(directory: dir, defaults: defaults)

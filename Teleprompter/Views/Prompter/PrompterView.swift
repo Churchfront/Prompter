@@ -37,6 +37,12 @@ struct PrompterView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// On iPad a sheet is a centered form sheet, and a medium detent squeezes it
+    /// to a sliver that hides its controls, so it opens at full form-sheet height.
+    /// On iPhone it opens half height so the script stays visible behind it.
+    private var isRegular: Bool { horizontalSizeClass == .regular }
+    private var sheetDetents: Set<PresentationDetent> { isRegular ? [.large] : [.medium, .large] }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showSettings = false
     @State private var showRemote = false
@@ -101,19 +107,19 @@ struct PrompterView: View {
         .sheet(isPresented: $showRemote) {
             NavigationStack { RemoteView() }
                 .environment(remoteHub)
-                .presentationDetents([.medium, .large])
+                .presentationDetents(sheetDetents)
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack { SettingsView(context: .prompter) }
                 .environment(settingsStore)
-                .presentationDetents([.medium, .large])
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                .presentationDetents(sheetDetents)
+                .presentationBackgroundInteraction(isRegular ? .enabled : .enabled(upThrough: .medium))
         }
         .sheet(item: $controller.speechIssue) { issue in
             SpeechIssueSheet(issue: issue,
                              onUseTimed: controller.useTimedScrollInstead,
                              onClose: { controller.speechIssue = nil })
-                .presentationDetents([.medium])
+                .presentationDetents(isRegular ? [.large] : [.medium])
         }
         .background(KeyCommandBridge(controller: controller))
         #if DEBUG
@@ -566,7 +572,7 @@ struct SpeechIssueSheet: View {
             Text(issue.title).signal(.heading).foregroundStyle(Signal.ink)
             Text(issue.message).signal(.bodyLarge).foregroundStyle(Signal.inkMuted)
             if issue.canOpenSettings {
-                Text("Settings > Prompter > \(issue == .microphoneDenied ? "Microphone" : "Speech Recognition")")
+                Text("Settings > CuePrompter > \(issue == .microphoneDenied ? "Microphone" : "Speech Recognition")")
                     .signal(.mono)
                     .foregroundStyle(Signal.ink)
                     .padding(Signal.Space.s3)
