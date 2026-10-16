@@ -22,6 +22,15 @@
   #fs.hide { opacity: 0; pointer-events: none; }
   #link { position: fixed; left: var(--s3); bottom: var(--s3); z-index: 6; transition: opacity 0.3s ease-out; }
   #link.hide { opacity: 0; }
+  #heard {
+    position: fixed; left: 0; right: 0; top: var(--s6); z-index: 6; display: flex; justify-content: center;
+    pointer-events: none; transition: opacity 0.3s ease-out;
+  }
+  #heard span {
+    background: var(--stage-highlight, #CAE7F9); color: #090E14; border-radius: 999px;
+    padding: var(--s2) var(--s4); font-size: 16px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  #heard.gone { opacity: 0; }
 </style>
 </head>
 <body>
@@ -35,6 +44,7 @@
 </div>
 
 <div id="countdown" class="overlay countdown" hidden aria-live="assertive"></div>
+<div id="heard" class="gone" aria-live="polite"><span></span></div>
 
 <button id="fs" class="btn" type="button" aria-label="Full screen">
   <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
@@ -120,7 +130,11 @@
     // The countdown reads through the same glass as the script: mirror and flip it too.
     const d = style.display || {};
     countdown.style.transform = `scale(${d.mirror ? -1 : 1}, ${d.flip ? -1 : 1})`;
+    heard.style.transform = countdown.style.transform;
   });
+
+  const heard = document.getElementById("heard");
+  let heardID = null, heardTimer;
 
   events.addEventListener("state", (e) => {
     const st = JSON.parse(e.data);
@@ -128,6 +142,14 @@
       waiting.hidden = false;
       countdown.hidden = true;
       return;
+    }
+    // A voice command was heard: confirm it briefly where the reader is looking.
+    if (st.heard && st.heard.id !== heardID) {
+      heardID = st.heard.id;
+      heard.firstChild.textContent = st.heard.text;
+      heard.classList.remove("gone");
+      clearTimeout(heardTimer);
+      heardTimer = setTimeout(() => heard.classList.add("gone"), 2500);
     }
     const playing = st.state === "playing";
     follower.push(st.position, playing, st.mode === "timed" ? st.timed : null);

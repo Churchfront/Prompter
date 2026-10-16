@@ -135,6 +135,14 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Voice commands", isOn: $store.settings.voiceCommands)
+            } header: {
+                SectionHeader("Voice commands")
+            } footer: {
+                Text("Say \u{201C}Teleprompter\u{201D} and then a command: \u{201C}go back one paragraph\u{201D}, \u{201C}next sentence\u{201D}, \u{201C}start over\u{201D}, \u{201C}pause\u{201D}, \u{201C}play\u{201D}, \u{201C}speed up 5 words per minute\u{201D}, \u{201C}set speed to 150\u{201D}, \u{201C}bigger text\u{201D}, \u{201C}mirror\u{201D}, \u{201C}switch to timed\u{201D}. The microphone stays on while the prompter is open, in both modes and while paused. Audio is never recorded.")
+            }
+
+            Section {
                 Toggle("Mirror horizontally", isOn: $store.settings.mirrorHorizontally)
                 Toggle("Flip vertically", isOn: $store.settings.flipVertically)
             } header: {

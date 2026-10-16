@@ -23,18 +23,19 @@ func runAll(_ title: String, _ entries: [(String, () -> ScenarioReport)]) {
 }
 runAll("Unit checks", UnitChecks.all)
 runAll("Voice-follow acceptance scenarios", AcceptanceScenarios.all)
+runAll("Voice commands", VoiceCommandChecks.all)
 print(failed == 0 ? "\nAll checks passed." : "\n\(failed) check group(s) failed.")
 exit(failed == 0 ? 0 : 1)
 EOF
 
 # Test files use `@testable import TeleprompterCore`; compiled as one module here.
-TESTS=("$CORE"/Tests/TeleprompterCoreTests/{VoiceFollowSimulation,AcceptanceScenarios,UnitChecks}.swift)
+TESTS=("$CORE"/Tests/TeleprompterCoreTests/{VoiceFollowSimulation,AcceptanceScenarios,UnitChecks,VoiceCommandChecks}.swift)
 for f in $TESTS; do sed '/@testable import TeleprompterCore/d' "$f" > "$OUT/${f:t}"; done
 
 SWIFTC=$(command -v swiftc)
 
 "$SWIFTC" -O -module-name CoreChecks \
   "$CORE"/Sources/TeleprompterCore/*.swift \
-  "$OUT"/{VoiceFollowSimulation,AcceptanceScenarios,UnitChecks}.swift "$OUT/main.swift" \
+  "$OUT"/{VoiceFollowSimulation,AcceptanceScenarios,UnitChecks,VoiceCommandChecks}.swift "$OUT/main.swift" \
   -o "$OUT/core-checks"
 "$OUT/core-checks"

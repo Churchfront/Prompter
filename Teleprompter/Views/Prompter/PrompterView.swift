@@ -84,8 +84,17 @@ struct PrompterView: View {
                 if controller.isEmpty {
                     EmptyScriptNotice(onClose: close)
                 }
+
+                if let heard = controller.heardCommand {
+                    HeardCommandToast(text: heard.text)
+                        .padding(.top, controller.controlsVisible ? 72 : Signal.Space.s6)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .transition(.opacity)
+                        .id(heard.id)
+                }
             }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: controller.controlsVisible)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: controller.heardCommand)
         }
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
@@ -235,6 +244,11 @@ private struct PrompterTopBar: View {
                     .fixedSize()
             }
 
+            if controller.settings.voiceCommands {
+                CommandIndicator(status: controller.commandListening, compact: isCompact)
+                    .fixedSize()
+            }
+
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(Int(controller.progress * 100))%")
                     .signal(.mono)
@@ -275,6 +289,69 @@ private struct PrompterTopBar: View {
         .background(Signal.surface)
         .overlay(alignment: .bottom) { Rectangle().fill(Signal.line).frame(height: 1) }
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// Shows that "Teleprompter, ..." commands are being listened for. Always a word and an icon.
+private struct CommandIndicator: View {
+    let status: CommandListening
+    var compact = false
+
+    var body: some View {
+        HStack(spacing: Signal.Space.s2) {
+            Image(systemName: icon).font(.system(size: 13, weight: .semibold))
+            if !compact {
+                Text(label).signal(.label).lineLimit(1)
+            }
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, Signal.Space.s2)
+        .frame(minHeight: 28)
+        .background(RoundedRectangle(cornerRadius: Signal.Radius.sm).fill(Signal.surfaceRaised))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Voice commands: \(label)")
+    }
+
+    private var label: String {
+        switch status {
+        case .off: "Commands off"
+        case .starting: "Starting"
+        case .listening: "Commands"
+        case .unavailable: "Commands unavailable"
+        }
+    }
+
+    private var icon: String {
+        switch status {
+        case .off: "mic.slash"
+        case .starting: "mic"
+        case .listening: "text.bubble"
+        case .unavailable: "exclamationmark.triangle"
+        }
+    }
+
+    private var tint: Color {
+        switch status {
+        case .listening: Signal.accent
+        case .starting, .off: Signal.inkSubtle
+        case .unavailable: Signal.warning
+        }
+    }
+}
+
+/// Brief confirmation that a voice command ran.
+private struct HeardCommandToast: View {
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: "checkmark")
+            .signal(.label)
+            .foregroundStyle(Signal.onAction)
+            .padding(.horizontal, Signal.Space.s4)
+            .frame(minHeight: 36)
+            .background(Capsule().fill(Signal.action))
+            .accessibilityLabel("Voice command: \(text)")
+            .allowsHitTesting(false)
     }
 }
 

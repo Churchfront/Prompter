@@ -139,6 +139,49 @@ public struct TokenizedScript: Sendable {
         return s > 0 ? sentenceStarts[s - 1] : 0
     }
 
+    /// First token of each paragraph.
+    public var paragraphStarts: [Int] {
+        var starts: [Int] = []
+        for (i, token) in tokens.enumerated() where i == 0 || token.paragraph != tokens[i - 1].paragraph {
+            starts.append(i)
+        }
+        return starts
+    }
+
+    private func starts(for unit: JumpUnit) -> [Int] {
+        unit == .sentence ? sentenceStarts : paragraphStarts
+    }
+
+    /// Index into `starts` of the start at or before `index`.
+    private static func containing(_ index: Int, in starts: [Int]) -> Int {
+        var lo = 0, hi = starts.count - 1
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if starts[mid] <= index { lo = mid } else { hi = mid - 1 }
+        }
+        return lo
+    }
+
+    /// Where "back `count` sentences/paragraphs" lands. Like `rewindTarget`, being
+    /// past the first two words of a sentence or paragraph counts its own start as the first step.
+    public func backTarget(from index: Int, unit: JumpUnit, count: Int) -> Int {
+        let starts = starts(for: unit)
+        guard !tokens.isEmpty, !starts.isEmpty, index > 0 else { return 0 }
+        let i = clamp(index)
+        let s = Self.containing(i, in: starts)
+        let steps = max(count, 1) - (i - starts[s] > 2 ? 1 : 0)
+        return starts[max(s - steps, 0)]
+    }
+
+    /// Where "ahead `count` sentences/paragraphs" lands, or nil when already in the last one.
+    public func forwardTarget(from index: Int, unit: JumpUnit, count: Int) -> Int? {
+        let starts = starts(for: unit)
+        guard !tokens.isEmpty, !starts.isEmpty else { return nil }
+        let s = index < 0 ? -1 : Self.containing(clamp(index), in: starts)
+        guard s + 1 < starts.count else { return nil }
+        return starts[min(s + max(count, 1), starts.count - 1)]
+    }
+
     /// Token whose range contains or follows the given UTF-16 offset.
     public func tokenIndex(atUTF16Offset offset: Int) -> Int {
         guard !tokens.isEmpty else { return 0 }
