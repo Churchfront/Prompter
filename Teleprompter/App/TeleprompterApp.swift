@@ -23,6 +23,10 @@ struct TeleprompterApp: App {
                 .environment(remoteHub)
                 .tint(Signal.accent)
                 .preferredColorScheme(settingsStore.settings.appearance.colorScheme)
+                .onOpenURL { remoteHub.handleOpenURL($0) }
+                // A prompter:// link goes to the open window instead of opening another one.
+                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         }
+        .handlesExternalEvents(matching: ["*"])
     }
 }

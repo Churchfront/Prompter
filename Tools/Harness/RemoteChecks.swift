@@ -216,6 +216,24 @@ extension Harness {
         check("Turning the remote off closes the ports", (await http("GET", control + "/")).status == 0)
     }
 
+    /// A prompter:// link (the portal's Send to Teleprompter) turns the ports on.
+    func openLink() async {
+        let store = ScriptStore(directory: freshDirectory(), defaults: freshDefaults())
+        let settingsStore = SettingsStore(defaults: freshDefaults())
+        let hub = RemoteHub(scriptStore: store, settingsStore: settingsStore, defaults: freshDefaults())
+        hub.setPorts(control: 17170, display: 17171)
+        check("Remote starts off", !hub.isEnabled && hub.status == .off)
+        check("Other links are not handled", !hub.handleOpenURL(URL(string: "https://app.churchfront.com")!) && !hub.isEnabled)
+        check("A prompter:// link is handled", hub.handleOpenURL(URL(string: "prompter://send?from=portal")!))
+        for _ in 0..<50 where hub.status != .running { await wait(0.1) }
+        let state = await http("GET", "http://127.0.0.1:17170/state")
+        check("It turns the phone remote and iPad display on", hub.isEnabled && hub.status == .running && state.status == 200, "\(hub.status)")
+        hub.handleOpenURL(URL(string: "PROMPTER://open")!)
+        await wait(0.3)
+        check("Opening it again while running changes nothing", hub.status == .running)
+        hub.isEnabled = false
+    }
+
     /// Runs the library with the remote on its default ports until the process is quit.
     func serve() async {
         let store = ScriptStore(directory: freshDirectory(), defaults: freshDefaults())
@@ -223,6 +241,11 @@ extension Harness {
         let settingsStore = SettingsStore(defaults: freshDefaults())
         settingsStore.settings.mode = .timed
         let hub = RemoteHub(scriptStore: store, settingsStore: settingsStore, defaults: freshDefaults())
+        // "--serve 18070" serves on 18070 and 18071, beside an installed Prompter on the defaults.
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--serve"), i + 1 < args.count, let port = UInt16(args[i + 1]) {
+            hub.setPorts(control: port, display: port + 1)
+        }
         hub.isEnabled = true
         _ = host(LibraryView().environment(store).environment(settingsStore).environment(hub),
                  size: CGSize(width: 1024, height: 768), compact: false)

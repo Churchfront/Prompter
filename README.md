@@ -54,6 +54,7 @@ Turn it on from the library toolbar (the phone icon) > **Phone remote and iPad d
 - **Full screen on iPad**: tap Full screen, or in Safari use Share > Add to Home Screen and open it from there for no browser bars. The page keeps the screen awake where Safari allows it.
 - **Ports**: change them in the same sheet if another app already uses 7070 or 7071.
 - **Security**: the pages work only on the local network, with no sign-in. Anyone on the same network who has the address can open them. The display port never accepts commands, and commands must be JSON, so other websites cannot send them. Use a trusted network, and turn the feature off when not in use.
+- **Opening from a link**: `prompter://` links open Prompter (or bring it forward) and turn on Phone remote and iPad display. Send to Teleprompter in the portal opens one when Prompter isn't running, then sends the script once the control port answers. The first time, Chrome asks to open Prompter; tick Always allow and it opens on its own after that. macOS registers the link when Prompter is installed or first opened.
 - **From Curriculum Studio**: on a course's Teleprompter page in the Churchfront portal, **Send to Prompter** posts the script to this app on the same Mac (`POST /import` on the control port), which saves it, keyed by course, and opens it. Sending again updates the same script. The portal then shows QR codes for **Teleprompter** (the display, for an iPad) and **Teleprompter Control** (the remote, for a phone). Scripts from the portal show "Sent from Curriculum Studio" in the editor menu instead of a Notion refresh.
 - **Mac**: macOS may ask once to allow incoming network connections. Choose Allow. On iPhone and iPad, allow Local Network access when asked.
 
@@ -173,9 +174,10 @@ Verified:
   - tap to pause, sentence jumps, restart, resume position, end of script
   - empty scripts, and a 15,300-word script
 
+  - opening from a `prompter://` link (5 checks): only that scheme is handled, it turns the ports on, and opening it again while running changes nothing
   - the phone remote and display link (31 checks): both ports serve their pages, nothing else is served, the display port refuses commands, play, pause, scrubbing, speed, mode, display-only mirror and size, script picking and closing from the phone, the event stream order and rate (about 30 positions a second while playing), the ports closing when turned off, and portal imports (preflight, create, update in place, other websites, network clients and the display port refused, JSON required)
 
-  It also renders iPhone- and iPad-sized screens to `Tools/Harness/Screenshots`. `Tools/run-app-harness.sh --serve` runs the library with the remote on 7070 and 7071 for testing in a browser.
+  It also renders iPhone- and iPad-sized screens to `Tools/Harness/Screenshots`. `Tools/run-app-harness.sh --serve` (or `--serve 18070` to use other ports beside an installed Prompter) runs the library with the remote on 7070 and 7071 for testing in a browser.
 
 - **Web pages**: the remote, display and embed were exercised in a browser against the running harness: opening a script from the phone, play with countdown, live highlight and dimming on the display, display-only mirror, the embed's keyboard play, and the iframe `postMessage` API. Display motion measured at 120 frames a second with no backward steps.
 

@@ -102,6 +102,9 @@ final class Harness {
         print("\nPhone remote and iPad display")
         await remoteLink()
 
+        print("\nOpening from a prompter:// link")
+        await openLink()
+
         print(failures == 0 ? "\nAll harness checks passed." : "\n\(failures) harness check(s) failed.")
     }
 
