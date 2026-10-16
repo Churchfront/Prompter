@@ -101,6 +101,11 @@ script moves as you read.
 
 To try Timed Scroll: choose Timed at the bottom left, then Play.
 
+Import > From Churchfront is optional and only for Churchfront staff: it signs
+in to our company portal (app.churchfront.com) and downloads the video scripts
+our team films. Every other feature works without it. If App Review needs to
+see it, we can provide a reviewer account on request.
+
 Notion import is optional and needs the user's own Notion integration token, so
 it cannot be demonstrated without a Notion workspace. Everything else works
 without it.
