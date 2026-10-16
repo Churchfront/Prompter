@@ -26,7 +26,7 @@ enum NotionError: LocalizedError, Equatable {
         case .invalidToken:
             "Notion did not accept this token. Copy the Internal Integration Secret again from notion.so/my-integrations."
         case .notShared:
-            "Prompter cannot see this page. In Notion, open the page (or its parent, such as Course Development), choose ••• > Connections, and add your Prompter integration."
+            "CuePrompter cannot see this page. In Notion, open the page (or its parent, such as Course Development), choose ••• > Connections, and add your CuePrompter integration."
         case .rateLimited:
             "Notion asked us to slow down. Wait a few seconds and try again."
         case .network(let detail):

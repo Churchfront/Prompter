@@ -149,7 +149,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Prompter;
+				INFOPLIST_KEY_CFBundleDisplayName = CuePrompter;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Voice Follow listens to you read so the script can move with your voice. Audio is processed live and never recorded or saved.";
@@ -190,7 +190,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Prompter;
+				INFOPLIST_KEY_CFBundleDisplayName = CuePrompter;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Voice Follow listens to you read so the script can move with your voice. Audio is processed live and never recorded or saved.";

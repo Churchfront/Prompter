@@ -1,6 +1,6 @@
-# Prompter
+# CuePrompter
 
-A native teleprompter for iPhone, iPad and Mac with two modes:
+CuePrompter (the project and code still say Prompter) is a native teleprompter for iPhone, iPad and Mac with two modes:
 
 - **Voice Follow** (default): listens to the reader and keeps the script in step with their speech. The pace comes from the reader's voice, not from a words-per-minute setting.
 - **Timed Scroll**: steady, time-based scrolling at an adjustable words-per-minute speed.

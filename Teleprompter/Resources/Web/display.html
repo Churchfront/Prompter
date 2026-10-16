@@ -6,9 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Prompter">
+<meta name="apple-mobile-web-app-title" content="CuePrompter">
 <meta name="theme-color" content="#090E14">
-<title>Prompter Display</title>
+<title>CuePrompter Display</title>
 <link rel="stylesheet" href="prompter.css">
 <style>
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: none; }
@@ -28,9 +28,9 @@
 <div id="stage" aria-label="Script" role="document"></div>
 
 <div id="waiting" class="overlay">
-  <p class="t-eyebrow subtle">Prompter display</p>
+  <p class="t-eyebrow subtle">CuePrompter display</p>
   <h1 class="t-title">Waiting for a script</h1>
-  <p class="muted" style="max-width: 32em">Open a script in the Prompter app, or pick one from the phone remote. It appears here on its own.</p>
+  <p class="muted" style="max-width: 32em">Open a script in the CuePrompter app, or pick one from the phone remote. It appears here on its own.</p>
   <p id="waiting-status" class="status idle">Connecting</p>
 </div>
 
@@ -107,7 +107,7 @@
     }
     if (s.id !== scriptID || stage.text !== s.text) {
       scriptID = s.id;
-      document.title = s.title + " · Prompter";
+      document.title = s.title + " · CuePrompter";
       stage.setScript(s.text, s.tokens, s.cues);
     }
     waiting.hidden = true;

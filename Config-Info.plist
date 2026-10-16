@@ -7,7 +7,7 @@
 	<true/>
 	<!-- Phone remote and iPad display: other devices on the network open pages this app serves. -->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Prompter serves the phone remote and the iPad display to devices on your Wi-Fi network, so they can control and show the script.</string>
+	<string>CuePrompter serves the phone remote and the iPad display to devices on your Wi-Fi network, so they can control and show the script.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Figtree-VariableFont_wght.ttf</string>
