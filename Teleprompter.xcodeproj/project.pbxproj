@@ -145,11 +145,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = MKNXXJNQ5L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Prompter;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Voice Follow listens to you read so the script can move with your voice. Audio is processed live and never recorded or saved.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Voice Follow matches your spoken words to the script to keep your place. Speech is not stored.";
@@ -185,11 +186,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = MKNXXJNQ5L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Prompter;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Voice Follow listens to you read so the script can move with your voice. Audio is processed live and never recorded or saved.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Voice Follow matches your spoken words to the script to keep your place. Speech is not stored.";
