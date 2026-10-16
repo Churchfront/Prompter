@@ -96,6 +96,7 @@ struct LibraryView: View {
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-uitestOpenSettings") { showSettings = true }
             if args.contains("-uitestOpenNotion") { showNotion = true }
+            if args.contains("-uitestOpenChurchfront") { showChurchfront = true }
             if args.contains("-uitestPresentFirst") { presenting = store.scripts.first }
         }
         #endif
