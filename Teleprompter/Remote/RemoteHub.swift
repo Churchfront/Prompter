@@ -131,6 +131,19 @@ final class RemoteHub {
         }
     }
 
+    /// A prompter:// link opened the app, usually the Churchfront portal's Send to
+    /// Teleprompter finding Prompter closed. The portal sends the script to the control
+    /// port next, so the ports must be open: turn them on, or retry if they failed.
+    @discardableResult
+    func handleOpenURL(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "prompter" else { return false }
+        if case .failed = status {
+            isEnabled = false
+        }
+        isEnabled = true
+        return true
+    }
+
     func refreshAddresses() {
         addresses = LocalNetwork.addresses()
     }
