@@ -11,6 +11,7 @@ Also included:
 - **Notion import**: pulls lesson scripts from Churchfront course build docs (for example Video 101).
 - **Stage directions**: bracketed cues such as `[ON CAMERA]` show small and dimmed, and Voice Follow skips them.
 - **Mirror mode**: one-click flip for beam-splitter glass. Only the script flips; the controls stay readable.
+- **Voice commands**: say "Teleprompter" and a command ("go back one paragraph", "speed up 5 words per minute") to drive the prompter hands-free, in either mode.
 - **Phone remote and iPad display**: the app serves a control page and a display page on two ports of the same address. Run the session from a phone and put the prompter on an iPad (or any screen with a browser).
 - **Web embed**: the same prompter as a standalone web page. It runs in any browser and drops into a site with an iframe.
 
@@ -38,6 +39,27 @@ xcodebuild -project Teleprompter.xcodeproj -scheme Teleprompter -configuration R
 The app lands in `build/Build/Products/Release-maccatalyst/Teleprompter.app`. Copy it to Applications.
 
 On the Mac, Voice Follow needs **Dictation** turned on (System Settings > Keyboard > Dictation). Apple's speech recognizer refuses requests while it is off, and the app explains this when it happens. `Prompter.entitlements` adds the microphone entitlement that the hardened runtime requires.
+
+## Voice commands
+
+Turn them on in Settings > **Voice commands**, or with **Listen for "Teleprompter"** on the phone remote. While the prompter is open, the host device's microphone listens for the wake word "Teleprompter" followed by a command. It listens in both modes and while paused, so "Teleprompter, play" works after a pause.
+
+| Say "Teleprompter", then | Does |
+| --- | --- |
+| "go back one paragraph", "back two sentences", "previous paragraph", "rewind" | Jumps back. Partway into a sentence or paragraph, one step back is its own start, like the back button. |
+| "next paragraph", "skip ahead three sentences", "go forward" | Jumps ahead |
+| "start over", "go to the top", "from the top" | Restarts |
+| "pause", "stop", "hold on" / "play", "resume", "go" | Pauses or plays |
+| "speed up 5 words per minute", "slow down 15", "faster", "slower", "set speed to 150" | Changes the Timed Scroll speed (10 when no number is given) |
+| "bigger text", "make the text smaller", "zoom in" | Changes the text size by 4 pt |
+| "mirror", "mirror on", "mirror off" | Mirror mode |
+| "switch to timed", "switch to voice follow" | Changes mode |
+
+Each command shows a brief confirmation on the host, the iPad display and the phone remote ("Back 1 paragraph").
+
+How it works: `VoiceCommandSpotter` (TeleprompterCore) watches the same recognizer transcripts Voice Follow uses. A command runs once, as soon as it is unambiguous: complete commands ("pause") right away, and commands that could still grow ("go" before "go back", "back" before "two paragraphs") once two more words follow, the recognition task ends, or speech has paused for 0.7 seconds. Numbers can be spoken as words or digits. "Teleprompter" followed by anything that is not a command, such as a script line about the teleprompter, is ignored. Voice Follow never sees the command words, or the words said before a command that moved the script, so a spoken jump does not pull the matcher back to the old place.
+
+Limits: Apple's recognizer returns words about half a second to a second after they are spoken, so a command lands a beat after you say it. When recording, the commands are in the audio; for a live service, the phone remote is quieter. On the Mac, Dictation must be on, as for Voice Follow.
 
 ## Phone remote and iPad display
 
@@ -106,7 +128,7 @@ Teleprompter/                  App target (folder is synchronized: new files are
   DesignSystem/Signal.swift    Churchfront Signal colors, type, buttons, signature shape
   Models/                      Script, ReaderSettings (all preferences)
   Persistence/                 ScriptStore (one JSON file per script), SettingsStore
-  Speech/SpeechRecognizer      Microphone + Apple Speech, permissions, interruptions
+  Speech/SpeechRecognizer      Microphone + Apple Speech, permissions, interruptions (also feeds voice commands)
   Remote/                      Phone remote and iPad display: HTTP server, hub, settings sheet
   Notion/NotionClient          Read-only Notion API client, Keychain token, importer
   Playback/PrompterController  Session logic: modes, countdown, jumps, lifecycle, resume
@@ -122,6 +144,7 @@ Packages/TeleprompterCore/     Pure Swift engine, no UIKit or audio
   ReadingPacer                 Measured pace, pause grace
   ScrollPhysics                Spring, timed scroll, token geometry
   NotionScriptExtractor        Notion blocks to lesson scripts (tested offline)
+  VoiceCommands                "Teleprompter, ..." grammar and wake-word spotter
 Tools/
   run-core-tests.sh            Runs the core checks with only the Swift compiler
   typecheck-app.sh             Type-checks the app against the iOS UIKit/SwiftUI SDK
@@ -163,9 +186,9 @@ Verified:
 - **Simulator (iPhone 17)**: walked through the library, editor, prompter, the real permission prompt and the denial message, the Notion connect screen, cue display, and mirror mode.
 - **Mac**: microphone access works from the installed app. Voice Follow then needs Dictation turned on, as described above.
 
-- **Core engine**: `Tools/run-core-tests.sh` passes all 12 unit check groups (including cues and Notion extraction) and all speech scenarios. The scenarios feed realistic recognizer output (latency, revised partial words, task restarts, garbled, dropped and inserted words) through the real pipeline. They cover slow and fast reading, silence, resuming, skipping a sentence with a duplicate phrase, repeating a phrase, recognition errors, relayout, off-script speech, and 4.5 minutes of continuous reading without drift.
+- **Core engine**: `Tools/run-core-tests.sh` passes all 12 unit check groups (including cues and Notion extraction), all speech scenarios, and 5 voice command groups (the grammar, things that must not trigger, commands in a growing live transcript, keeping command words out of script matching, and paragraph jumps). The scenarios feed realistic recognizer output (latency, revised partial words, task restarts, garbled, dropped and inserted words) through the real pipeline. They cover slow and fast reading, silence, resuming, skipping a sentence with a duplicate phrase, repeating a phrase, recognition errors, relayout, off-script speech, and 4.5 minutes of continuous reading without drift.
 - **App code**: `Tools/typecheck-app.sh` type-checks every app file against the iOS UIKit/SwiftUI SDK (the Mac Catalyst variant).
-- **Runtime**: `Tools/run-app-harness.sh` passes 61 checks. It runs the real app code in a Mac Catalyst process and covers:
+- **Runtime**: `Tools/run-app-harness.sh` passes 87 checks. It runs the real app code in a Mac Catalyst process and covers:
   - persistence and relaunch, including corrupt files and text encodings
   - settings migration
   - timed-scroll speed accuracy and smoothness
@@ -175,7 +198,9 @@ Verified:
 
   - the phone remote and display link (31 checks): both ports serve their pages, nothing else is served, the display port refuses commands, play, pause, scrubbing, speed, mode, display-only mirror and size, script picking and closing from the phone, the event stream order and rate (about 30 positions a second while playing), the ports closing when turned off, and portal imports (preflight, create, update in place, other websites, network clients and the display port refused, JSON required)
 
-  It also renders iPhone- and iPad-sized screens to `Tools/Harness/Screenshots`. `Tools/run-app-harness.sh --serve` runs the library with the remote on 7070 and 7071 for testing in a browser.
+  - voice commands in the real controller (14 checks), fed as simulated recognizer transcripts with the microphone held off: paragraph jumps, waiting for the whole phrase, a lone "go" settling into play, pause acting at once, script lines about the teleprompter doing nothing, and the phone remote's toggle and confirmation
+
+  It also renders iPhone- and iPad-sized screens to `Tools/Harness/Screenshots`. `Tools/run-app-harness.sh --serve` (or `--serve 18070` to use other ports beside an installed Prompter) runs the library with the remote on 7070 and 7071 for testing in a browser.
 
 - **Web pages**: the remote, display and embed were exercised in a browser against the running harness: opening a script from the phone, play with countdown, live highlight and dimming on the display, display-only mirror, the embed's keyboard play, and the iframe `postMessage` API. Display motion measured at 120 frames a second with no backward steps.
 
@@ -186,6 +211,7 @@ Not yet verified:
 - A real Notion import (needs an integration token). The extractor is tested against a fixture shaped like the Video 101 doc.
 - Phone-call interruptions and AirPods route changes.
 - On-device feel at 120 Hz.
+- Voice commands with a real voice and microphone, including how quickly they land and how often a noisy room triggers them.
 - The remote and display on a real phone and iPad over Wi-Fi (tested on this Mac's own network address and localhost), including the Local Network permission prompt on iOS.
 
 ## Limitations

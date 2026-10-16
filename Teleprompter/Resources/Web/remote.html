@@ -47,6 +47,12 @@
   .scripts .on { color: var(--accent); }
   .settings-grid { display: grid; gap: var(--s3); }
   .countdown-chip { font-size: 13px; color: var(--accent); font-weight: 700; }
+  .heard { color: var(--accent); font-weight: 600; transition: opacity 0.3s ease-out; }
+  .heard.gone { opacity: 0; }
+  details.say summary { cursor: pointer; color: var(--ink-muted); min-height: var(--control-lg); display: flex; align-items: center; }
+  details.say ul { margin: 0; padding-left: var(--s5); color: var(--ink-muted); }
+  details.say li { margin: var(--s1) 0; }
+  details.say q { color: var(--ink); quotes: "\201C" "\201D"; }
 </style>
 </head>
 <body>
@@ -130,6 +136,33 @@
         <span>Off</span>
       </button>
     </div>
+  </div>
+</section>
+
+<section aria-labelledby="voice-heading">
+  <h2 id="voice-heading" class="t-label subtle">Voice commands</h2>
+  <div class="settings-grid">
+    <div class="row between">
+      <span>Listen for <q>Teleprompter</q></span>
+      <button class="btn btn-quiet" id="voice-commands" type="button" aria-pressed="false"><span>Off</span></button>
+    </div>
+    <div class="row between">
+      <span id="commands-status" class="status idle">Off</span>
+      <span id="heard" class="heard gone" aria-live="polite"></span>
+    </div>
+    <details class="say">
+      <summary>What to say</summary>
+      <p class="t-body-small muted" style="margin:0 0 var(--s2)">Say <q>Teleprompter</q>, then:</p>
+      <ul class="t-body-small">
+        <li><q>go back one paragraph</q>, <q>back two sentences</q></li>
+        <li><q>next paragraph</q>, <q>skip ahead</q></li>
+        <li><q>start over</q>, <q>pause</q>, <q>play</q></li>
+        <li><q>speed up 5 words per minute</q>, <q>slow down</q>, <q>set speed to 150</q></li>
+        <li><q>bigger text</q>, <q>smaller text</q>, <q>mirror</q></li>
+        <li><q>switch to timed</q>, <q>switch to voice follow</q></li>
+      </ul>
+      <p class="t-body-small muted">The microphone on the host device listens while the prompter is open. Nothing is recorded.</p>
+    </details>
   </div>
 </section>
 
@@ -227,7 +260,29 @@
     preview.setHighlight(state.readUpTo, state.current);
   }
 
+  $("voice-commands").addEventListener("click", () => send("voiceCommands", { value: state.voiceCommands ? 0 : 1 }));
+
+  let heardID = null, heardTimer;
+  function renderVoice() {
+    toggle($("voice-commands"), !!state.voiceCommands);
+    const status = $("commands-status");
+    const [text, kind] = !state.voiceCommands ? ["Off", "idle"]
+      : !state.session ? ["Starts when a script opens", "idle"]
+      : ({ listening: ["Listening", "ok"], starting: ["Starting mic", "warn"], unavailable: ["Mic unavailable on the host", "bad"] }[state.commands] || ["Mic off", "idle"]);
+    status.textContent = text;
+    status.className = "status " + kind;
+    if (state.heard && state.heard.id !== heardID) {
+      heardID = state.heard.id;
+      const heard = $("heard");
+      heard.textContent = "Heard: " + state.heard.text;
+      heard.classList.remove("gone");
+      clearTimeout(heardTimer);
+      heardTimer = setTimeout(() => heard.classList.add("gone"), 2500);
+    }
+  }
+
   function renderState() {
+    renderVoice();
     const on = state.session;
     $("session").hidden = !on;
     $("playback").hidden = !on;

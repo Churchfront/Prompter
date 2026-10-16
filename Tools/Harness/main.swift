@@ -102,6 +102,9 @@ final class Harness {
         print("\nPhone remote and iPad display")
         await remoteLink()
 
+        print("\nVoice commands")
+        await voiceCommands()
+
         print(failures == 0 ? "\nAll harness checks passed." : "\n\(failures) harness check(s) failed.")
     }
 
@@ -178,6 +181,7 @@ final class Harness {
         settings(&settingsStore.settings)
         let script = store.create(title: "Harness script", body: body)
         let controller = PrompterController(script: script, settingsStore: settingsStore, scriptStore: store)
+        controller.microphoneAllowed = false
         let hub = RemoteHub(scriptStore: store, settingsStore: settingsStore, defaults: freshDefaults())
         let view = AnyView(PrompterView(controller: controller).environment(settingsStore).environment(store).environment(hub))
         let hosting = host(view, size: size, compact: compact)

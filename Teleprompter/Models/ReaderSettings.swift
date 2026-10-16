@@ -167,6 +167,8 @@ struct ReaderSettings: Codable, Equatable {
     var countdownSeconds: Int = 3
     var tapToPause = true
     var autoHideControls = true
+    /// Listen for "Teleprompter, ..." commands while the prompter is open.
+    var voiceCommands = false
 
     // Mirror
     var mirrorHorizontally = false
@@ -210,6 +212,7 @@ struct ReaderSettings: Codable, Equatable {
         countdownSeconds = min(max(value(.countdownSeconds, d.countdownSeconds), 0), 10)
         tapToPause = value(.tapToPause, d.tapToPause)
         autoHideControls = value(.autoHideControls, d.autoHideControls)
+        voiceCommands = value(.voiceCommands, d.voiceCommands)
         mirrorHorizontally = value(.mirrorHorizontally, d.mirrorHorizontally)
         flipVertically = value(.flipVertically, d.flipVertically)
     }

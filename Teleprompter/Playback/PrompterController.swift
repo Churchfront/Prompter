@@ -27,6 +27,20 @@ enum TrackingStatus: Equatable {
     case unavailable
 }
 
+/// Whether the microphone is listening for "Teleprompter, ..." commands.
+enum CommandListening: Equatable {
+    case off
+    case starting
+    case listening
+    case unavailable
+}
+
+/// A voice command that just ran, shown briefly so the reader knows it was heard.
+struct HeardCommand: Equatable {
+    let id = UUID()
+    let text: String
+}
+
 /// Highlight to draw: words before `readUpTo` are dimmed, `current` is emphasized.
 struct PrompterHighlight: Equatable {
     var readUpTo: Int
@@ -74,6 +88,8 @@ final class PrompterController {
     var speechIssue: SpeechIssue?
     /// Token to offer "pick up where you left off" from.
     private(set) var resumeCandidate: Int?
+    private(set) var commandListening: CommandListening = .off
+    private(set) var heardCommand: HeardCommand?
 
     var isEmpty: Bool { tokens.isEmpty }
     var settings: ReaderSettings { settingsStore.settings }
@@ -105,6 +121,15 @@ final class PrompterController {
     @ObservationIgnored private var hideControlsTask: Task<Void, Never>?
     @ObservationIgnored private var finishTask: Task<Void, Never>?
 
+    // Voice commands
+    @ObservationIgnored private var spotter = VoiceCommandSpotter()
+    @ObservationIgnored private var spotterTask: Task<Void, Never>?
+    @ObservationIgnored private var heardTask: Task<Void, Never>?
+    @ObservationIgnored private var isClosed = false
+    @ObservationIgnored private var isInBackground = false
+    /// Off in the test harness, so commands can be fed as transcripts without a microphone prompt.
+    @ObservationIgnored var microphoneAllowed = true
+
     init(script: Script, settingsStore: SettingsStore, scriptStore: ScriptStore) {
         scriptID = script.id
         title = script.displayTitle
@@ -130,6 +155,7 @@ final class PrompterController {
     func attach(surface: PrompterSurface) {
         self.surface = surface
         startDisplayLink()
+        updateCommandListening()
     }
 
     /// The text view re-laid out (rotation, font change) and preserved the reading position.
@@ -318,6 +344,7 @@ final class PrompterController {
         if matcher.configuration != config { matcher.configuration = config }
         pacer.graceInterval = s.pauseGrace
         refreshReadouts(now: CACurrentMediaTime(), force: true)
+        updateCommandListening()
     }
 
     // MARK: Manual repositioning
@@ -344,13 +371,19 @@ final class PrompterController {
     func handleScenePhase(_ phase: ScenePhase) {
         switch phase {
         case .background:
+            isInBackground = true
             pause()
             saveResumePosition()
+            updateCommandListening()
         case .inactive:
             // Control Center, an incoming call banner: stop listening, keep the place.
             if mode == .voiceFollow { pause() }
         case .active:
             showControls()
+            if isInBackground {
+                isInBackground = false
+                updateCommandListening()
+            }
         @unknown default:
             break
         }
@@ -358,6 +391,9 @@ final class PrompterController {
 
     /// The prompter is closing.
     func close() {
+        isClosed = true
+        spotterTask?.cancel()
+        heardTask?.cancel()
         countdownTask?.cancel()
         hideControlsTask?.cancel()
         finishTask?.cancel()
@@ -453,25 +489,141 @@ final class PrompterController {
     }
 
     private func startListening() {
+        startRecognizer()
+        tracking = speech.state == .listening ? .waiting : .starting
+    }
+
+    private func startRecognizer() {
         speech.preferOnDevice = settings.preferOnDeviceRecognition
         if speech.contextualStrings.isEmpty {
-            speech.contextualStrings = tokens.distinctiveWords(in: text)
+            // The wake word first, so the recognizer expects it.
+            speech.contextualStrings = ["Teleprompter"] + tokens.distinctiveWords(in: text, limit: 99)
         }
         if speech.state != .listening && speech.state != .starting {
             speech.start()
         }
-        tracking = .starting
     }
 
+    /// Voice Follow no longer needs the microphone. Voice commands may still.
     private func stopListening() {
-        speech.stop()
         tracking = .off
         micLevel = 0
+        if wantsCommandListening {
+            updateCommandListening()
+        } else {
+            speech.stop()
+            commandListening = .off
+        }
     }
 
-    private func handleTranscript(_ update: TranscriptUpdate) {
+    // MARK: Voice commands
+
+    private var wantsCommandListening: Bool {
+        settings.voiceCommands && microphoneAllowed && !isClosed && !isInBackground && !isEmpty
+    }
+
+    /// Keeps the microphone on for commands while they are turned on, in either
+    /// mode and while paused, and off when nothing needs it.
+    func updateCommandListening() {
+        guard wantsCommandListening else {
+            if !settings.voiceCommands {
+                spotterTask?.cancel()
+                spotter.reset()
+            }
+            if !(mode == .voiceFollow && state.isRunning) && speech.state != .idle { speech.stop() }
+            commandListening = .off
+            return
+        }
+        switch SpeechRecognizer.authorization() {
+        case .authorized:
+            if speech.state == .listening { commandListening = .listening; return }
+            if commandListening == .unavailable, case .unavailable = speech.state { return }
+            commandListening = .starting
+            startRecognizer()
+        case .notDetermined:
+            commandListening = .starting
+            Task {
+                _ = await SpeechRecognizer.requestAuthorization()
+                if case .authorized = SpeechRecognizer.authorization() {
+                    self.updateCommandListening()
+                } else {
+                    self.commandListening = .unavailable
+                }
+            }
+        case .denied:
+            commandListening = .unavailable
+        }
+    }
+
+    /// Runs a spoken command. Also used by the harness.
+    func perform(_ command: VoiceCommand) {
+        switch command {
+        case .play:
+            if !state.isRunning { play() }
+        case .pause:
+            pause()
+        case .restart:
+            restart()
+        case .back(let unit, let count):
+            noteInteraction()
+            place(atToken: tokens.backTarget(from: currentToken, unit: unit, count: count), animated: true)
+            if state == .finished { state = .paused }
+        case .forward(let unit, let count):
+            noteInteraction()
+            if let target = tokens.forwardTarget(from: currentToken, unit: unit, count: count) {
+                place(atToken: target, animated: true)
+            }
+        case .speedBy(let delta):
+            adjustSpeed(by: delta)
+        case .speedTo(let wpm):
+            noteInteraction()
+            settingsStore.settings.wordsPerMinute = wpm.clamped(to: ReaderSettings.wordsPerMinuteRange).rounded()
+        case .textBigger:
+            settingsStore.settings.fontSize = (settings.fontSize + 4).clamped(to: ReaderSettings.fontSizeRange)
+        case .textSmaller:
+            settingsStore.settings.fontSize = (settings.fontSize - 4).clamped(to: ReaderSettings.fontSizeRange)
+        case .mirror(let on):
+            settingsStore.settings.mirrorHorizontally = on ?? !settings.mirrorHorizontally
+        case .timedMode:
+            setMode(.timed)
+        case .voiceFollowMode:
+            setMode(.voiceFollow)
+        }
+        settingsDidChange()
+        let heard = HeardCommand(text: command.summary)
+        heardCommand = heard
+        heardTask?.cancel()
+        heardTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard let self, !Task.isCancelled, self.heardCommand == heard else { return }
+            self.heardCommand = nil
+        }
+    }
+
+    /// A command that might still grow ("go" before "go back") runs once speech settles.
+    private func scheduleSpotterFlush() {
+        spotterTask?.cancel()
+        spotterTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(0.75))
+            guard let self, !Task.isCancelled else { return }
+            for command in self.spotter.flush(now: CACurrentMediaTime()) { self.perform(command) }
+        }
+    }
+
+    /// One recognizer update. Internal so the harness can feed simulated speech.
+    func handleTranscript(_ update: TranscriptUpdate) {
+        var heard = update.text
+        if settings.voiceCommands {
+            let words = TextNormalizer.words(in: update.text)
+            let result = spotter.process(words: words, generation: update.generation,
+                                         isFinal: update.isFinal, now: CACurrentMediaTime())
+            // Script matching never sees the commands, or the words before a command that moved the script.
+            heard = result.scriptWords.joined(separator: " ")
+            for command in result.commands { perform(command) }
+            if result.isPending { scheduleSpotterFlush() }
+        }
         guard mode == .voiceFollow, state == .playing, jumpGoal == nil else { return }
-        guard transcript.update(hypothesis: update.text, generation: update.generation, isFinal: update.isFinal) else { return }
+        guard transcript.update(hypothesis: heard, generation: update.generation, isFinal: update.isFinal) else { return }
         let outcome = matcher.process(spoken: transcript.tail(matcher.configuration.tailLength))
         let now = CACurrentMediaTime()
         switch outcome {
@@ -492,21 +644,26 @@ final class PrompterController {
 
     private func handleListeningState(_ listening: ListeningState) {
         isOnDeviceRecognition = speech.isUsingOnDeviceRecognition
+        let following = mode == .voiceFollow && state.isRunning
         switch listening {
         case .unavailable(let issue):
-            tracking = .unavailable
-            if mode == .voiceFollow && state.isRunning {
+            if settings.voiceCommands { commandListening = .unavailable }
+            tracking = following ? .unavailable : .off
+            if following {
                 pause()
                 speechIssue = issue
             }
         case .interrupted:
-            if mode == .voiceFollow && state.isRunning { pause() }
+            if settings.voiceCommands { commandListening = .off }
+            if following { pause() }
         case .listening:
-            tracking = .waiting
+            if settings.voiceCommands { commandListening = .listening }
+            if following { tracking = .waiting }
         case .starting:
-            tracking = .starting
+            if settings.voiceCommands { commandListening = .starting }
+            if following { tracking = .starting }
         case .idle:
-            break
+            if commandListening != .unavailable { commandListening = .off }
         }
     }
 
